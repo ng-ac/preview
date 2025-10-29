@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>Masakari</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: white;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+
+        .slider {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .wrapper {
+            display: flex;
+            width: 200%;
+            height: 100%;
+            transition: transform 0.4s ease;
+            will-change: transform;
+        }
+
+        .slide {
+            width: 50%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .slide img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .wrapper.slide-1 {
+            transform: translateX(-50%);
+        }
+
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .arrow:active {
+            transform: translateY(-50%) scale(0.95);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .prev {
+            left: 15px;
+        }
+
+        .next {
+            right: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .arrow {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .prev {
+                left: 30px;
+            }
+
+            .next {
+                right: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="slider">
+        <div class="wrapper" id="wrapper">
+            <div class="slide">
+                <img src="鉞組ロゴグレイ.PNG" alt="Image 1">
+            </div>
+            <div class="slide">
+                <img src="鉞組_丸ロゴ.png" alt="Image 2">
+            </div>
+        </div>
+
+        <button class="arrow prev" onclick="prevSlide()">‹</button>
+        <button class="arrow next" onclick="nextSlide()">›</button>
+    </div>
+
+    <script>
+        let current = 0;
+        let startX = 0;
+        let isDragging = false;
+
+        const wrapper = document.getElementById('wrapper');
+
+        function nextSlide() {
+            current = (current + 1) % 2;
+            updateSlide();
+        }
+
+        function prevSlide() {
+            current = (current - 1 + 2) % 2;
+            updateSlide();
+        }
+
+        function updateSlide() {
+            wrapper.className = current === 1 ? 'wrapper slide-1' : 'wrapper';
+        }
+
+        wrapper.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+        }, { passive: true });
+
+        wrapper.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+        }, { passive: true });
+
+        wrapper.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            const endX = e.changedTouches[0].clientX;
+            const diff = startX - endX;
+
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    nextSlide();
+                } else {
+                    prevSlide();
+                }
+            }
+
+            isDragging = false;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevSlide();
+            if (e.key === 'ArrowRight') nextSlide();
+        });
+    </script>
+</body>
+
+</html>
