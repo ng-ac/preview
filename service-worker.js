@@ -5,7 +5,7 @@ const urlsToCache = [
   './htc.html',
   './masakari.html',
   './鉞組ロゴグレイ.PNG',
-  './鉞組丸ロゴ.png'
+  './鉞組丸ロゴ.PNG'
 ];
 
 self.addEventListener('install', (event) => {
@@ -46,4 +46,5 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
 
