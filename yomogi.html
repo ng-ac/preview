@@ -16,6 +16,7 @@
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
             overflow-x: hidden;
             background: #fff;
+            touch-action: pan-y pinch-zoom;
         }
 
         .slider-container {
@@ -23,6 +24,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
+            touch-action: pan-y;
         }
 
         .slides {
@@ -30,6 +32,7 @@
             width: 100%;
             height: 100%;
             transition: transform 0.4s ease;
+            touch-action: pan-y;
         }
 
         .slide {
@@ -38,6 +41,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            touch-action: none;
         }
 
         .slide img {
@@ -45,6 +49,8 @@
             height: 100%;
             object-fit: contain;
             background: #fff;
+            user-select: none;
+            -webkit-user-drag: none;
         }
 
         .dots {
@@ -185,14 +191,12 @@
         }
 
         function updateArrows() {
-            // 最初のページでは「‹」を非表示
             if (currentSlide === 0) {
                 prevBtn.classList.add('hidden');
             } else {
                 prevBtn.classList.remove('hidden');
             }
 
-            // 最後のページでは「›」を非表示
             if (currentSlide === totalSlides - 1) {
                 nextBtn.classList.add('hidden');
             } else {
@@ -227,19 +231,44 @@
             updateSlide();
         }
 
-        // スワイプ操作対応
+        // スワイプ操作対応(改善版)
         let touchStartX = 0;
+        let touchStartY = 0;
         let touchEndX = 0;
+        let touchEndY = 0;
+        let isSwiping = false;
 
         slides.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].screenX;
-        });
+            touchStartY = e.changedTouches[0].screenY;
+            isSwiping = true;
+        }, { passive: true });
+
+        slides.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+        }, { passive: true });
 
         slides.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            if (touchStartX - touchEndX > 50) nextSlide();
-            if (touchEndX - touchStartX > 50) prevSlide();
-        });
+            if (!isSwiping) return;
+
+            const deltaX = touchStartX - touchEndX;
+            const deltaY = Math.abs(touchStartY - touchEndY);
+
+            // 横スワイプが縦スワイプより大きい場合のみ反応
+            if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 30) {
+                if (deltaX > 0) {
+                    // 左スワイプ → 次へ
+                    nextSlide();
+                } else {
+                    // 右スワイプ → 前へ
+                    prevSlide();
+                }
+            }
+
+            isSwiping = false;
+        }, { passive: true });
 
         // キーボード操作対応
         document.addEventListener('keydown', (e) => {
