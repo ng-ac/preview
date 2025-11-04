@@ -14,9 +14,9 @@
 
         body {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-            overflow-x: hidden;
+            overflow: hidden;
             background: #fff;
-            touch-action: pan-y pinch-zoom;
+            touch-action: none;
         }
 
         .slider-container {
@@ -24,7 +24,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            touch-action: pan-y;
+            touch-action: none;
         }
 
         .slides {
@@ -32,7 +32,7 @@
             width: 100%;
             height: 100%;
             transition: transform 0.4s ease;
-            touch-action: pan-y;
+            touch-action: none;
         }
 
         .slide {
@@ -51,6 +51,7 @@
             background: #fff;
             user-select: none;
             -webkit-user-drag: none;
+            pointer-events: none;
         }
 
         .dots {
@@ -137,34 +138,34 @@
 </head>
 
 <body>
-    <div class="slider-container">
+    <div class="slider-container" id="sliderContainer">
         <div class="slides" id="slides">
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_1.png" alt="セルフよもぎ蒸し">
+                <img src="セルフよもぎ蒸し_ページ_1.png" alt="セルフよもぎ蒸し">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_2.png" alt="本日の流れ">
+                <img src="セルフよもぎ蒸し_ページ_2.png" alt="本日の流れ">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_3.png" alt="ご利用ありがとうございました">
+                <img src="セルフよもぎ蒸し_ページ_3.png" alt="ご利用ありがとうございました">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_4.png" alt="準備 1-3">
+                <img src="セルフよもぎ蒸し_ページ_4.png" alt="準備 1-3">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_5.png" alt="準備 4-6">
+                <img src="セルフよもぎ蒸し_ページ_5.png" alt="準備 4-6">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_6.png" alt="準備 7-9">
+                <img src="セルフよもぎ蒸し_ページ_6.png" alt="準備 7-9">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_7.png" alt="よもぎ蒸し 1-3">
+                <img src="セルフよもぎ蒸し_ページ_7.png" alt="よもぎ蒸し 1-3">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_8.png" alt="片付け 1-3">
+                <img src="セルフよもぎ蒸し_ページ_8.png" alt="片付け 1-3">
             </div>
             <div class="slide">
-                <img src="セルフよもぎ蒸し_ページ_9.png" alt="片付け 4-6">
+                <img src="セルフよもぎ蒸し_ページ_9.png" alt="片付け 4-6">
             </div>
         </div>
 
@@ -176,6 +177,7 @@
 
     <script>
         let currentSlide = 0;
+        const sliderContainer = document.getElementById('sliderContainer');
         const slides = document.getElementById('slides');
         const totalSlides = document.querySelectorAll('.slide').length;
         const dotsContainer = document.getElementById('dots');
@@ -231,32 +233,33 @@
             updateSlide();
         }
 
-        // スワイプ操作対応(改善版)
+        // スワイプ操作対応(全画面対応)
         let touchStartX = 0;
         let touchStartY = 0;
         let touchEndX = 0;
         let touchEndY = 0;
         let isSwiping = false;
 
-        slides.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
+        // slider-container全体にイベントを設定
+        sliderContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
             isSwiping = true;
         }, { passive: true });
 
-        slides.addEventListener('touchmove', (e) => {
+        sliderContainer.addEventListener('touchmove', (e) => {
             if (!isSwiping) return;
-            touchEndX = e.changedTouches[0].screenX;
-            touchEndY = e.changedTouches[0].screenY;
+            touchEndX = e.touches[0].clientX;
+            touchEndY = e.touches[0].clientY;
         }, { passive: true });
 
-        slides.addEventListener('touchend', (e) => {
+        sliderContainer.addEventListener('touchend', (e) => {
             if (!isSwiping) return;
-
+            
             const deltaX = touchStartX - touchEndX;
             const deltaY = Math.abs(touchStartY - touchEndY);
-
-            // 横スワイプが縦スワイプより大きい場合のみ反応
+            
+            // 横スワイプが縦スワイプより大きく、30px以上移動した場合
             if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 30) {
                 if (deltaX > 0) {
                     // 左スワイプ → 次へ
@@ -266,9 +269,38 @@
                     prevSlide();
                 }
             }
-
+            
             isSwiping = false;
         }, { passive: true });
+
+        // マウスドラッグ対応(PC用)
+        let mouseStartX = 0;
+        let isMouseDown = false;
+
+        sliderContainer.addEventListener('mousedown', (e) => {
+            mouseStartX = e.clientX;
+            isMouseDown = true;
+        });
+
+        sliderContainer.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+        });
+
+        sliderContainer.addEventListener('mouseup', (e) => {
+            if (!isMouseDown) return;
+            
+            const deltaX = mouseStartX - e.clientX;
+            
+            if (Math.abs(deltaX) > 50) {
+                if (deltaX > 0) {
+                    nextSlide();
+                } else {
+                    prevSlide();
+                }
+            }
+            
+            isMouseDown = false;
+        });
 
         // キーボード操作対応
         document.addEventListener('keydown', (e) => {
