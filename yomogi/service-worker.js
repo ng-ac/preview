@@ -1,16 +1,16 @@
 const CACHE_NAME = 'yomogi-app-v1';
 const urlsToCache = [
-    './yomogi/',
-    './yomogi/yomogi.html',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
-    '../yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
+    '/yomogi/',
+    '/yomogi/yomogi.html',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
+    '/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
 ];
 
 self.addEventListener('install', (event) => {
