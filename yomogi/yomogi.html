@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="よもぎ蒸し">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="./icon-192.png">
     <title>セルフよもぎ蒸し</title>
     <style>
         * {
@@ -268,7 +267,6 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const counter = document.getElementById('counter');
-        const rotateMessage = document.getElementById('rotateMessage');
 
         // 画面向き監視（最適化版）
         let orientationTimer = null;
@@ -291,14 +289,12 @@
 
             requestAnimationFrame(() => {
                 if (isLandscape) {
-                    rotateMessage.classList.remove('show');
                     sliderContainer.classList.remove('hide');
                     dotsContainer.classList.remove('hide');
                     prevBtn.classList.remove('hide');
                     nextBtn.classList.remove('hide');
                     counter.classList.remove('hide');
                 } else {
-                    rotateMessage.classList.add('show');
                     sliderContainer.classList.add('hide');
                     dotsContainer.classList.add('hide');
                     prevBtn.classList.add('hide');
