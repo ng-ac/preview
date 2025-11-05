@@ -1,15 +1,15 @@
 const CACHE_NAME = 'yomogi-v1';
 const urlsToCache = [
-    'preview/yomogi/yomogi.html',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
-    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
+    '/preview/yomogi/yomogi.html',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
+    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -66,5 +66,6 @@ self.addEventListener('fetch', (event) => {
             })
     );
 });
+
 
 
