@@ -306,13 +306,6 @@
             if (e.key === 'ArrowRight') nextSlide();
         });
 
-        // 画面向きロック（対応デバイスのみ）
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {
-                console.log('Orientation lock not supported');
-            });
-        }
-
         // Service Worker登録
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -327,3 +320,4 @@
 </body>
 
 </html>
+
