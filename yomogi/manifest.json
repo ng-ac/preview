@@ -2,21 +2,24 @@
     "name": "セルフよもぎ蒸しガイド",
     "short_name": "よもぎ蒸し",
     "description": "セルフよもぎ蒸し手順書",
-    "start_url": "./yomogi.html",
+    "start_url": "./yomogi.html?standalone=true",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#ffffff",
-    "orientation": "portrait",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "orientation": "landscape",
     "icons": [
         {
             "src": "./icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         },
         {
             "src": "./icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         }
     ]
 }
