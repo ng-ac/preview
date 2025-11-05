@@ -12,16 +12,16 @@ console.log('📍 Parent Path:', parentPath);
 
 
 const urlsToCache = [
-    '/preview/yomogi/yomogi.html',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
-    '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
+    'preview/yomogi/yomogi.html',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_3.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_4.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_5.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_6.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_7.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_8.png',
+    'preview/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
 ];
 
 console.log('📋 キャッシュ対象URL:', urlsToCache);
@@ -98,6 +98,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 console.log('✅ Service Worker ファイル読み込み完了');
+
 
 
 
