@@ -1,6 +1,5 @@
 const CACHE_NAME = 'yomogi-app-v1';
 const urlsToCache = [
-    './',
     './yomogi.html',
     '../yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
     '../yomogiphoto/セルフよもぎ蒸し_ページ_2.png',
