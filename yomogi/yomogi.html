@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#ffffff">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="よもぎ蒸し">
@@ -180,15 +180,15 @@
 <body>
     <div class="slider-container" id="sliderContainer">
         <div class="slides" id="slides">
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_1.png" alt="ページ1"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_2.png" alt="ページ2"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_3.png" alt="ページ3"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_4.png" alt="ページ4"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_5.png" alt="ページ5"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_6.png" alt="ページ6"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_7.png" alt="ページ7"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_8.png" alt="ページ8"></div>
-            <div class="slide"><img src="/yomogiphoto/セルフよもぎ蒸し_ページ_9.png" alt="ページ9"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_1.png" alt="ページ1"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_2.png" alt="ページ2"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_3.png" alt="ページ3"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_4.png" alt="ページ4"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_5.png" alt="ページ5"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_6.png" alt="ページ6"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_7.png" alt="ページ7"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_8.png" alt="ページ8"></div>
+            <div class="slide"><img src="../yomogiphoto/セルフよもぎ蒸し_ページ_9.png" alt="ページ9"></div>
         </div>
 
         <button class="arrow prev" id="prevBtn">‹</button>
@@ -293,7 +293,7 @@
 
         // Service Worker登録
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
+            navigator.serviceWorker.register('./service-worker.js')
                 .then(() => console.log('Service Worker registered'))
                 .catch((err) => console.log('Service Worker error:', err));
         }
