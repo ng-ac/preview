@@ -13,7 +13,7 @@ console.log('📍 Parent Path:', parentPath);
 
 const urlsToCache = [
     'preview/yomogi/yomogi.html',
-    'preview/yomogiphoto/よもぎ11.png',
+    'preview/yomogiphoto/よもぎ1.png',
     'preview/yomogiphoto/よもぎ2.png',
     'preview/yomogiphoto/よもぎ3.png',
     'preview/yomogiphoto/よもぎ4.png',
@@ -98,6 +98,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 console.log('✅ Service Worker ファイル読み込み完了');
+
 
 
 
