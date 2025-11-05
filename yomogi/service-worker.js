@@ -1,4 +1,16 @@
 const CACHE_NAME = 'yomogi-v1';
+
+console.log('🚀 Service Worker ファイル読み込み開始');
+
+const swPath = new URL(self.location).pathname;
+const basePath = swPath.substring(0, swPath.lastIndexOf('/'));
+const parentPath = basePath.substring(0, basePath.lastIndexOf('/'));
+
+console.log('📍 SW Path:', swPath);
+console.log('📍 Base Path:', basePath);
+console.log('📍 Parent Path:', parentPath);
+
+
 const urlsToCache = [
     '/preview/yomogi/yomogi.html',
     '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_1.png',
@@ -12,44 +24,64 @@ const urlsToCache = [
     '/preview/yomogiphoto/セルフよもぎ蒸し_ページ_9.png'
 ];
 
+console.log('📋 キャッシュ対象URL:', urlsToCache);
+
 self.addEventListener('install', (event) => {
+    console.log('⚙️ INSTALL イベント発火');
+    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('[SW] キャッシュ開始');
+                console.log('✅ キャッシュストレージオープン:', CACHE_NAME);
                 
-                // 個別にキャッシュしてエラーを特定
-                return Promise.all(
-                    urlsToCache.map((url) => {
-                        return cache.add(url)
-                            .then(() => {
-                                console.log('[SW] ✅ キャッシュ成功:', url);
-                            })
-                            .catch((err) => {
-                                console.error('[SW] ❌ キャッシュ失敗:', url, err);
-                            });
-                    })
-                );
+                // 1つずつキャッシュ
+                const promises = urlsToCache.map((url, index) => {
+                    console.log(`🔄 [${index + 1}/${urlsToCache.length}] キャッシュ試行:`, url);
+                    
+                    return cache.add(url)
+                        .then(() => {
+                            console.log(`✅ [${index + 1}/${urlsToCache.length}] 成功:`, url);
+                        })
+                        .catch((err) => {
+                            console.error(`❌ [${index + 1}/${urlsToCache.length}] 失敗:`, url);
+                            console.error('   エラー詳細:', err);
+                            console.error('   エラーメッセージ:', err.message);
+                        });
+                });
+                
+                return Promise.all(promises);
             })
             .then(() => {
-                console.log('[SW] キャッシュ完了');
+                console.log('🎉 全てのキャッシュ処理完了');
                 return self.skipWaiting();
+            })
+            .catch((err) => {
+                console.error('💥 INSTALLエラー:', err);
             })
     );
 });
 
 self.addEventListener('activate', (event) => {
+    console.log('🔥 ACTIVATE イベント発火');
+    
     event.waitUntil(
         caches.keys()
-            .then((keys) => Promise.all(
-                keys.map((key) => {
-                    if (key !== CACHE_NAME) {
-                        console.log('[SW] 古いキャッシュ削除:', key);
-                        return caches.delete(key);
-                    }
-                })
-            ))
-            .then(() => self.clients.claim())
+            .then((keys) => {
+                console.log('📦 既存キャッシュ一覧:', keys);
+                
+                return Promise.all(
+                    keys.map((key) => {
+                        if (key !== CACHE_NAME) {
+                            console.log('🗑️ 古いキャッシュ削除:', key);
+                            return caches.delete(key);
+                        }
+                    })
+                );
+            })
+            .then(() => {
+                console.log('✅ ACTIVATE 完了');
+                return self.clients.claim();
+            })
     );
 });
 
@@ -60,12 +92,12 @@ self.addEventListener('fetch', (event) => {
                 if (response) {
                     return response;
                 }
-                return fetch(event.request).catch((err) => {
-                    console.log('[SW] Fetch失敗:', event.request.url);
-                });
+                return fetch(event.request);
             })
     );
 });
+
+console.log('✅ Service Worker ファイル読み込み完了');
 
 
 
