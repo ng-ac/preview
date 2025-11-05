@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="よもぎ蒸し">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="./icon-192.png">
     <title>セルフよもぎ蒸し</title>
     <style>
         * {
@@ -37,6 +36,58 @@
             position: fixed;
         }
 
+        /* 縦向き警告メッセージ */
+        .rotate-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            color: #fff;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10000;
+        }
+
+        .rotate-text {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        @keyframes rotate {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            50% {
+                transform: rotate(90deg);
+            }
+        }
+
+        /* メディアクエリで即座に表示切替 */
+        @media (orientation: portrait) {
+            .rotate-message {
+                display: flex !important;
+            }
+
+            .slider-container,
+            .dots,
+            .arrow,
+            .counter {
+                display: none !important;
+            }
+        }
+
+        @media (orientation: landscape) {
+            .rotate-message {
+                display: none !important;
+            }
+        }
 
         .slider-container {
             position: fixed;
@@ -45,13 +96,6 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            opacity: 1;
-            transition: opacity 0.2s ease;
-        }
-
-        .slider-container.hide {
-            opacity: 0;
-            pointer-events: none;
         }
 
         .slides {
@@ -95,12 +139,6 @@
             padding: 10px 15px;
             background: rgba(255, 255, 255, 0.9);
             border-radius: 20px;
-            transition: opacity 0.2s ease;
-        }
-
-        .dots.hide {
-            opacity: 0;
-            pointer-events: none;
         }
 
         .dot {
@@ -143,11 +181,6 @@
             pointer-events: auto;
         }
 
-        .arrow.hide {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
         .arrow:active {
             transform: translateY(-50%) scale(0.95);
         }
@@ -171,12 +204,6 @@
             font-weight: 500;
             color: #333;
             z-index: 100;
-            transition: opacity 0.2s ease;
-        }
-
-        .counter.hide {
-            opacity: 0;
-            pointer-events: none;
         }
 
         @media (max-height: 768px) {
@@ -216,6 +243,10 @@
 </head>
 
 <body>
+    <!-- 縦向き警告メッセージ -->
+    <div class="rotate-message">
+        <p class="rotate-text">画面を横向きにしてください</p>
+    </div>
 
     <div class="slider-container" id="sliderContainer">
         <div class="slides" id="slides">
@@ -246,58 +277,6 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const counter = document.getElementById('counter');
-
-        // 画面向き監視（最適化版）
-        let orientationTimer = null;
-        let lastOrientation = null;
-        let isProcessing = false;
-
-        function checkOrientation() {
-            if (isProcessing) return;
-            isProcessing = true;
-
-            const isLandscape = window.innerWidth > window.innerHeight;
-            const currentOrientation = isLandscape ? 'landscape' : 'portrait';
-
-            if (currentOrientation === lastOrientation) {
-                isProcessing = false;
-                return;
-            }
-
-            lastOrientation = currentOrientation;
-
-            requestAnimationFrame(() => {
-                if (isLandscape) {
-                    sliderContainer.classList.remove('hide');
-                    dotsContainer.classList.remove('hide');
-                    prevBtn.classList.remove('hide');
-                    nextBtn.classList.remove('hide');
-                    counter.classList.remove('hide');
-                } else {
-                    sliderContainer.classList.add('hide');
-                    dotsContainer.classList.add('hide');
-                    prevBtn.classList.add('hide');
-                    nextBtn.classList.add('hide');
-                    counter.classList.add('hide');
-                }
-
-                isProcessing = false;
-            });
-        }
-
-        function handleOrientationChange() {
-            if (orientationTimer) {
-                clearTimeout(orientationTimer);
-            }
-            orientationTimer = setTimeout(checkOrientation, 100);
-        }
-
-        // 初回チェック
-        checkOrientation();
-
-        // イベントリスナー
-        window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
-        window.addEventListener('resize', handleOrientationChange, { passive: true });
 
         // ドット生成
         for (let i = 0; i < totalSlides; i++) {
