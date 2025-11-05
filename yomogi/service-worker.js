@@ -12,16 +12,16 @@ console.log('📍 Parent Path:', parentPath);
 
 
 const urlsToCache = [
-    'preview/yomogi/yomogi.html',
-    'preview/yomogiphoto/よもぎ1.png',
-    'preview/yomogiphoto/よもぎ2.png',
-    'preview/yomogiphoto/よもぎ3.png',
-    'preview/yomogiphoto/よもぎ4.png',
-    'preview/yomogiphoto/よもぎ5.png',
-    'preview/yomogiphoto/よもぎ6.png',
-    'preview/yomogiphoto/よもぎ7.png',
-    'preview/yomogiphoto/よもぎ8.png',
-    'preview/yomogiphoto/よもぎ9.png'
+    '/preview/yomogi/yomogi.html',
+    '/preview/yomogiphoto/よもぎ1.png',
+    '/preview/yomogiphoto/よもぎ2.png',
+    '/preview/yomogiphoto/よもぎ3.png',
+    '/preview/yomogiphoto/よもぎ4.png',
+    '/preview/yomogiphoto/よもぎ5.png',
+    '/preview/yomogiphoto/よもぎ6.png',
+    '/preview/yomogiphoto/よもぎ7.png',
+    '/preview/yomogiphoto/よもぎ8.png',
+    '/preview/yomogiphoto/よもぎ9.png'
 ];
 
 console.log('📋 キャッシュ対象URL:', urlsToCache);
@@ -98,6 +98,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 console.log('✅ Service Worker ファイル読み込み完了');
+
 
 
 
