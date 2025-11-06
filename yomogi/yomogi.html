@@ -284,7 +284,7 @@
         sliderContainer.addEventListener('touchend', (e) => {
             if (!isDragging) return;
 
-            if (touchTarget && (touchTarget.closest('.arrow') || touchTarget.closest('.dot'))) {
+            if (touchTarget.closest('.arrow') || touchTarget.closest('.dot')) {
                 isDragging = false;
                 slides.classList.remove('dragging');
                 return;
@@ -319,47 +319,10 @@
             if (e.key === 'ArrowRight') nextSlide();
         });
 
-        // 画面回転対応（安全版）
-        let resizeTimer;
-        let isRotating = false;
-
-        function handleResize() {
-            if (isRotating) return;
-
-            isRotating = true;
-            clearTimeout(resizeTimer);
-
-            resizeTimer = setTimeout(() => {
-                try {
-                    updateSlide();
-                } catch (e) {
-                    console.log('Resize handled');
-                }
-                isRotating = false;
-            }, 150);
-        }
-
-        window.addEventListener('resize', handleResize, { passive: true });
-
-        if (window.screen && window.screen.orientation) {
-            window.screen.orientation.addEventListener('change', () => {
-                setTimeout(() => {
-                    try {
-                        updateSlide();
-                    } catch (e) {
-                        console.log('Orientation handled');
-                    }
-                }, 250);
-            });
-        }
-
-        // Service Worker登録
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/preview/yomogi/service-worker.js', {
-                    scope: '/preview/yomogi/'
-                })
-                    .then(reg => console.log('SW registered:', reg.scope))
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('SW registered'))
                     .catch(err => console.error('SW error:', err));
             });
         }
@@ -369,6 +332,7 @@
 </body>
 
 </html>
+
 
 
 
