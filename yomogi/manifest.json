@@ -3,12 +3,13 @@
     "short_name": "よもぎ蒸し",
     "description": "セルフよもぎ蒸し手順書",
     "start_url": "/preview/yomogi/yomogi.html",
-    "scope": "/",
+    "scope": "/preview/yomogi/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#000000",
     "orientation": "landscape"
 }
+
 
 
 
