@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="preview/yomogi/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="よもぎ蒸し">
@@ -321,7 +321,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
+                navigator.serviceWorker.register('preview/yomogi/service-worker.js')
                     .then(reg => console.log('SW registered'))
                     .catch(err => console.error('SW error:', err));
             });
@@ -332,6 +332,7 @@
 </body>
 
 </html>
+
 
 
 
