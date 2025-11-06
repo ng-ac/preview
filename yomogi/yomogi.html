@@ -212,115 +212,119 @@
 
     <script>
         let currentSlide = 0;
-        const sliderContainer = document.getElementById('sliderContainer');
-        const slides = document.getElementById('slides');
-        const totalSlides = document.querySelectorAll('.slide').length;
-        const dotsContainer = document.getElementById('dots');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const counter = document.getElementById('counter');
+const sliderContainer = document.getElementById('sliderContainer');
+const slides = document.getElementById('slides');
+const totalSlides = document.querySelectorAll('.slide').length;
+const dotsContainer = document.getElementById('dots');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const counter = document.getElementById('counter');
 
-        // ドット生成
-        for (let i = 0; i < totalSlides; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'dot' + (i === 0 ? ' active' : '');
-            dot.onclick = () => goToSlide(i);
-            dot.setAttribute('aria-label', `ページ${i + 1}へ`);
-            dotsContainer.appendChild(dot);
-        }
+// ドット生成
+for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        goToSlide(i);
+    });
+    dot.setAttribute('aria-label', `ページ${i + 1}へ`);
+    dotsContainer.appendChild(dot);
+}
 
-        function updateSlide() {
-            slides.style.transform = `translateX(-${currentSlide * 100}vw)`;
+function updateSlide() {
+    slides.style.transform = `translateX(-${currentSlide * 100}vw)`;
 
-            document.querySelectorAll('.dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
-            });
+    document.querySelectorAll('.dot').forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentSlide);
+    });
 
-            prevBtn.classList.toggle('visible', currentSlide > 0);
-            nextBtn.classList.toggle('visible', currentSlide < totalSlides - 1);
+    prevBtn.classList.toggle('visible', currentSlide > 0);
+    nextBtn.classList.toggle('visible', currentSlide < totalSlides - 1);
 
-            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
-        }
+    counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+}
 
-        function nextSlide() {
-            if (currentSlide < totalSlides - 1) {
-                currentSlide++;
-                updateSlide();
-            }
-        }
-
-        function prevSlide() {
-            if (currentSlide > 0) {
-                currentSlide--;
-                updateSlide();
-            }
-        }
-
-        function goToSlide(index) {
-            currentSlide = index;
-            updateSlide();
-        }
-
-        let touchStartX = 0;
-        let touchEndX = 0;
-        let isDragging = false;
-
-        sliderContainer.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            isDragging = true;
-            slides.classList.add('dragging');
-        }, { passive: true });
-
-        sliderContainer.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            touchEndX = e.touches[0].clientX;
-        }, { passive: true });
-
-        sliderContainer.addEventListener('touchend', () => {
-            if (!isDragging) return;
-
-            const deltaX = touchStartX - touchEndX;
-
-            if (Math.abs(deltaX) > 50) {
-                if (deltaX > 0) {
-                    nextSlide();
-                } else {
-                    prevSlide();
-                }
-            }
-
-            isDragging = false;
-            slides.classList.remove('dragging');
-        });
-
-        prevBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            prevSlide();
-        });
-
-        nextBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            nextSlide();
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') prevSlide();
-            if (e.key === 'ArrowRight') nextSlide();
-        });
-
-        // Service Worker登録
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('SW registered'))
-                    .catch(err => console.error('SW error:', err));
-            });
-        }
-
+function nextSlide() {
+    if (currentSlide < totalSlides - 1) {
+        currentSlide++;
         updateSlide();
+    }
+}
+
+function prevSlide() {
+    if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+    }
+}
+
+function goToSlide(index) {
+    currentSlide = index;
+    updateSlide();
+}
+
+let touchStartX = 0;
+let touchEndX = 0;
+let isDragging = false;
+
+sliderContainer.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    isDragging = true;
+    slides.classList.add('dragging');
+}, { passive: true });
+
+sliderContainer.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    touchEndX = e.touches[0].clientX;
+}, { passive: true });
+
+sliderContainer.addEventListener('touchend', () => {
+    if (!isDragging) return;
+
+    const deltaX = touchStartX - touchEndX;
+
+    if (Math.abs(deltaX) > 50) {
+        if (deltaX > 0) {
+            nextSlide();
+        } else {
+            prevSlide();
+        }
+    }
+
+    isDragging = false;
+    slides.classList.remove('dragging');
+});
+
+prevBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    prevSlide();
+});
+
+nextBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextSlide();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') prevSlide();
+    if (e.key === 'ArrowRight') nextSlide();
+});
+
+// Service Worker登録
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('SW registered'))
+            .catch(err => console.error('SW error:', err));
+    });
+}
+
+updateSlide();
     </script>
 </body>
 
 </html>
+
 
 
