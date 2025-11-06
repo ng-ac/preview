@@ -233,16 +233,18 @@
         }
 
         function updateSlide() {
-            slides.style.transform = `translateX(-${currentSlide * 100}vw)`;
+            requestAnimationFrame(() => {
+                slides.style.transform = `translateX(-${currentSlide * 100}vw)`;
 
-            document.querySelectorAll('.dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index === currentSlide);
+                document.querySelectorAll('.dot').forEach((dot, index) => {
+                    dot.classList.toggle('active', index === currentSlide);
+                });
+
+                prevBtn.classList.toggle('visible', currentSlide > 0);
+                nextBtn.classList.toggle('visible', currentSlide < totalSlides - 1);
+
+                counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
             });
-
-            prevBtn.classList.toggle('visible', currentSlide > 0);
-            nextBtn.classList.toggle('visible', currentSlide < totalSlides - 1);
-
-            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
         }
 
         function nextSlide() {
@@ -319,10 +321,29 @@
             if (e.key === 'ArrowRight') nextSlide();
         });
 
+        // 画面回転・リサイズ対応
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                updateSlide();
+            }, 100);
+        });
+
+        // orientationchange対応（iOS用）
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                updateSlide();
+            }, 200);
+        });
+
+        // Service Worker登録
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('preview/yomogi/service-worker.js')
-                    .then(reg => console.log('SW registered'))
+                navigator.serviceWorker.register('/preview/yomogi/service-worker.js', {
+                    scope: '/preview/yomogi/'
+                })
+                    .then(reg => console.log('SW registered:', reg.scope))
                     .catch(err => console.error('SW error:', err));
             });
         }
@@ -332,6 +353,7 @@
 </body>
 
 </html>
+
 
 
 
