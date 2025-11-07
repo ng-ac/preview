@@ -467,10 +467,13 @@
         }
 
         function updateSlide() {
+            // ① 切替の直前だけ昇格（最大でも数百msで外す）
             slides.style.willChange = 'transform';
 
+            // ② GPU 合成を確実にするため translate3d を使用（単位はそのままvwでOK）
             slides.style.transform = `translate3d(-${currentSlide * 100}vw, 0, 0)`;
 
+            // ③ UI更新は従来どおり
             document.querySelectorAll('.dot').forEach((dot, index) => {
                 dot.classList.toggle('active', index === currentSlide);
             });
@@ -480,14 +483,14 @@
 
             counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
 
+            // ④ アニメ完了時に昇格解除（保険のタイムアウトも）
             const clear = () => {
                 slides.style.willChange = '';
                 slides.removeEventListener('transitionend', clear);
             };
             slides.addEventListener('transitionend', clear, { once: true });
-            setTimeout(clear, 600);
+            setTimeout(clear, 600); // transitionが走らなかった場合の保険
         }
-
         function nextSlide() {
             if (currentSlide < totalSlides - 1) {
                 currentSlide++;
@@ -662,6 +665,7 @@
 </body>
 
 </html>
+
 
 
 
