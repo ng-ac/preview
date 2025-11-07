@@ -1,0 +1,18 @@
+{
+    "name": "メインメニュー",
+    "short_name": "Main",
+    "description": "メインメニュー（よもぎ蒸し等への入口）",
+    "start_url": "/preview/main/main.html",
+    "scope": "/preview/main/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#000000",
+
+    "icons": [
+        {
+            "src": "/preview/main/unlimited.ico",
+            "sizes": "64x64 128x128 256x256",
+            "type": "image/x-icon"
+        }
+    ]
+}
