@@ -36,6 +36,27 @@
             position: fixed;
         }
 
+        .top-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    z-index: 200;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.top-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
         .slider-container {
             position: fixed;
             top: 0;
@@ -154,6 +175,13 @@
         }
 
         @media (max-height: 768px) {
+            .top-button {
+        top: 15px;
+        left: 15px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+            
             .dots {
                 bottom: 15px;
                 gap: 6px;
@@ -190,6 +218,7 @@
 </head>
 
 <body>
+    <a href="/preview/main.html" class="top-button">TOP</a>
     <div class="slider-container" id="sliderContainer">
         <div class="slides" id="slides">
             <div class="slide"><img src="/preview/yomogiphoto/よもぎ1.jpg" alt="ページ1"></div>
@@ -345,6 +374,7 @@
 </body>
 
 </html>
+
 
 
 
