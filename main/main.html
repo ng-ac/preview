@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>メニュー画面</title>
+    <title>umlimited</title>
 
     <link rel="manifest" href="/preview/main/manifest.json">
     <link rel="icon" href="/preview/main/unlimited.ico" type="image/x-icon">
@@ -29,7 +29,7 @@
             background-repeat: no-repeat;
             font-family: 'Poppins', 'Noto Sans JP', sans-serif;
             display: flex;
-            align-items: center;
+            align-items: stretch;
             justify-content: flex-start;
         }
 
@@ -43,6 +43,9 @@
             flex-direction: column;
             gap: 35px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            height: 100vh;
+            max-height: 100dvh;
+            overflow-y: auto;
         }
 
         .menu a {
