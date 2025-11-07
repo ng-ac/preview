@@ -321,7 +321,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/preview/yomogi/service-worker.js')
+                navigator.serviceWorker.register('/preview/service-worker.js')
                     .then(reg => console.log('SW registered'))
                     .catch(err => console.error('SW error:', err));
             });
@@ -332,4 +332,5 @@
 </body>
 
 </html>
+
 
