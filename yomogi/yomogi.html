@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="よもぎ蒸し">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>セルフよもぎ蒸し</title>
     <style>
         * {
@@ -17,23 +18,30 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            position: fixed;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background: #fff;
+            touch-action: pan-y pinch-zoom;
             -webkit-user-select: none;
             user-select: none;
+            position: fixed;
         }
 
         .slider-container {
-            width: 100%;
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
         }
 
@@ -41,17 +49,18 @@
             display: flex;
             width: 100%;
             height: 100%;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            will-change: transform;
         }
 
-        .slides.no-transition {
+        .slides.dragging {
             transition: none;
         }
 
         .slide {
             flex-shrink: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -59,8 +68,8 @@
         }
 
         .slide img {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
             pointer-events: none;
             -webkit-user-drag: none;
@@ -108,10 +117,10 @@
             align-items: center;
             justify-content: center;
             z-index: 100;
+            transition: all 0.2s ease;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.2s ease;
         }
 
         .arrow.visible {
@@ -162,6 +171,14 @@
                 font-size: 20px;
             }
 
+            .arrow.prev {
+                left: 10px;
+            }
+
+            .arrow.next {
+                right: 10px;
+            }
+
             .counter {
                 top: 15px;
                 right: 15px;
@@ -171,7 +188,6 @@
         }
     </style>
 </head>
-
 
 <body>
     <div class="slider-container" id="sliderContainer">
@@ -195,147 +211,124 @@
     </div>
 
     <script>
-         <script>
-        const TOTAL = 9;
-        let current = 0;
-        
-        const container = document.getElementById('container');
+        let currentSlide = 0;
+        const sliderContainer = document.getElementById('sliderContainer');
         const slides = document.getElementById('slides');
-        const dots = document.getElementById('dots');
+        const totalSlides = document.querySelectorAll('.slide').length;
+        const dotsContainer = document.getElementById('dots');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const counter = document.getElementById('counter');
 
         // ドット生成
-        for (let i = 0; i < TOTAL; i++) {
+        for (let i = 0; i < totalSlides; i++) {
             const dot = document.createElement('div');
-            dot.className = 'dot';
-            if (i === 0) dot.classList.add('active');
-            dot.onclick = () => goTo(i);
-            dots.appendChild(dot);
-        }
-
-        // 更新処理
-        function update() {
-            const width = container.offsetWidth;
-            slides.style.transform = `translateX(${-current * width}px)`;
-            
-            // ドット更新
-            const allDots = dots.querySelectorAll('.dot');
-            allDots.forEach((dot, i) => {
-                if (i === current) {
-                    dot.classList.add('active');
-                } else {
-                    dot.classList.remove('active');
-                }
+            dot.className = 'dot' + (i === 0 ? ' active' : '');
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                goToSlide(i);
             });
-            
-            // 矢印表示制御
-            if (current > 0) {
-                prevBtn.classList.add('visible');
-            } else {
-                prevBtn.classList.remove('visible');
-            }
-            
-            if (current < TOTAL - 1) {
-                nextBtn.classList.add('visible');
-            } else {
-                nextBtn.classList.remove('visible');
-            }
-            
-            // カウンター更新
-            counter.textContent = `${current + 1} / ${TOTAL}`;
+            dot.setAttribute('aria-label', `ページ${i + 1}へ`);
+            dotsContainer.appendChild(dot);
         }
 
-        // ページ移動
-        function goTo(index) {
-            if (index >= 0 && index < TOTAL) {
-                current = index;
-                update();
-            }
+        function updateSlide() {
+            slides.style.transform = `translateX(-${currentSlide * 100}vw)`;
+
+            document.querySelectorAll('.dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+
+            prevBtn.classList.toggle('visible', currentSlide > 0);
+            nextBtn.classList.toggle('visible', currentSlide < totalSlides - 1);
+
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
         }
 
-        function next() {
-            if (current < TOTAL - 1) {
-                current++;
-                update();
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
             }
         }
 
-        function prev() {
-            if (current > 0) {
-                current--;
-                update();
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
             }
         }
 
-        // 矢印ボタン
-        prevBtn.onclick = prev;
-        nextBtn.onclick = next;
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlide();
+        }
 
-        // スワイプ操作
-        let startX = 0;
-        let startY = 0;
-        
-        container.ontouchstart = (e) => {
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-        };
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let isDragging = false;
+        let touchTarget = null;
 
-        container.ontouchmove = (e) => {
-            // 縦スクロール防止
-            e.preventDefault();
-        };
+        sliderContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchTarget = e.target;
+            isDragging = true;
+            slides.classList.add('dragging');
+        }, { passive: true });
 
-        container.ontouchend = (e) => {
-            const endX = e.changedTouches[0].clientX;
-            const endY = e.changedTouches[0].clientY;
-            const diffX = startX - endX;
-            const diffY = startY - endY;
-            
-            // 横方向の動きが優勢な場合のみスワイプ判定
-            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-                if (diffX > 0) {
-                    next();
+        sliderContainer.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            touchEndX = e.touches[0].clientX;
+        }, { passive: true });
+
+        sliderContainer.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+
+            if (touchTarget.closest('.arrow') || touchTarget.closest('.dot')) {
+                isDragging = false;
+                slides.classList.remove('dragging');
+                return;
+            }
+
+            const deltaX = touchStartX - touchEndX;
+
+            if (Math.abs(deltaX) > 50) {
+                if (deltaX > 0) {
+                    nextSlide();
                 } else {
-                    prev();
+                    prevSlide();
                 }
             }
-        };
 
-        // キーボード操作
-        document.onkeydown = (e) => {
-            if (e.key === 'ArrowLeft') prev();
-            if (e.key === 'ArrowRight') next();
-        };
+            isDragging = false;
+            slides.classList.remove('dragging');
+        });
 
-        // 画面回転・リサイズ対応
-        let resizeTimer = null;
-        
-        window.onresize = () => {
-            // トランジション一時無効化
-            slides.classList.add('no-transition');
-            
-            // タイマークリア
-            if (resizeTimer) {
-                clearTimeout(resizeTimer);
-            }
-            
-            // 即座に位置更新
-            update();
-            
-            // 100ms後にトランジション復活
-            resizeTimer = setTimeout(() => {
-                slides.classList.remove('no-transition');
-            }, 100);
-        };
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            prevSlide();
+        });
 
-        // 初期表示
-        update();
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            nextSlide();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevSlide();
+            if (e.key === 'ArrowRight') nextSlide();
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/preview/yomogi/service-worker.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.error('SW error:', err));
+            });
+        }
+
+        updateSlide();
     </script>
-</body>
-
-</html>
 </body>
 
 </html>
