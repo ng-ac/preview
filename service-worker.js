@@ -2,6 +2,7 @@ const CACHE_NAME = 'yomogi-v1';
 const urlsToCache = [
     '/preview/main/main.html',
     '/preview/main/main.jpg',
+    '/preview/main/main.mp4',
     '/preview/yomogi/yomogi.html',
     '/preview/yomogiphoto/よもぎ1.jpg',
     '/preview/yomogiphoto/よもぎ2.jpg',
@@ -42,6 +43,7 @@ self.addEventListener('fetch', event => {
         })
     );
 });
+
 
 
 
