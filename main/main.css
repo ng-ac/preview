@@ -1,0 +1,67 @@
+/* ===== 透明リンクレイヤー ===== */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    /* 子要素だけ反応 */
+}
+
+.overlay a {
+    position: absolute;
+    display: block;
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0);
+    /* 完全透明 */
+    border-radius: 20px;
+}
+
+/* ===== 各ボタンの当たり判定（16:9基準で設定） ===== */
+
+/* セルフよもぎ蒸し（左上） */
+.btn-yomogi {
+    top: 23%;
+    left: 6%;
+    width: 42%;
+    height: 25%;
+}
+
+/* プライベートジム（右上） */
+.btn-gym {
+    top: 23%;
+    right: 6%;
+    width: 42%;
+    height: 25%;
+}
+
+/* SELF TANNING（左下） */
+.btn-tanning {
+    top: 56%;
+    left: 6%;
+    width: 42%;
+    height: 25%;
+}
+
+/* デバッグ時に当たり領域を表示したい場合 */
+.overlay.debug a {
+    outline: 2px dashed red;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+/* 画面が極端に縦長・横長のときの微補正例 */
+@media (max-width: 600px) {
+    #link-yomogi {
+        top: 26%;
+        height: 25%;
+    }
+
+    #link-gym {
+        top: 26%;
+        height: 25%;
+    }
+
+    #link-tanning {
+        top: 59%;
+        height: 25%;
+    }
+}
