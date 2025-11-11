@@ -20,26 +20,26 @@
 
 /* セルフよもぎ蒸し（左上） */
 .btn-yomogi {
-    top: 23%;
-    left: 6%;
-    width: 42%;
-    height: 25%;
+    top: 30%;
+    left: 10%;
+    width: 38%;
+    height: 28%;
 }
 
 /* プライベートジム（右上） */
 .btn-gym {
-    top: 23%;
-    right: 6%;
-    width: 42%;
-    height: 25%;
+    top: 30%;
+    right: 11%;
+    width: 38%;
+    height: 28%;
 }
 
 /* SELF TANNING（左下） */
 .btn-tanning {
-    top: 56%;
-    left: 6%;
-    width: 42%;
-    height: 25%;
+    top: 63%;
+    left: 10%;
+    width: 38%;
+    height: 28%;
 }
 
 /* デバッグ時に当たり領域を表示したい場合 */
