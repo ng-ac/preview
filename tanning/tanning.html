@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coming Soon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        h1 {
+            font-size: 3rem;
+            color: #333;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .top-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            text-decoration: none;
+            padding: 12px 22px;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        @media (max-height: 768px) {
+            .top-button {
+                top: 15px;
+                left: 15px;
+                padding: 10px 18px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="/preview/main/main.html" class="top-button">TOP</a>
+    <h1>coming soon...</h1>
+</body>
+
+</html>
