@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>umlimited</title>
 
     <link rel="manifest" href="/preview/main/manifest.json">
@@ -24,8 +24,16 @@
             box-sizing: border-box;
         }
 
+        html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        }
+
         body {
-            height: 100vh;
+            min-height: 100dvh;      /* iOS16+ / 近年のブラウザ */
+            min-height: 100svh;      /* iOS15.4+ 対応（必要なら） */
+            min-height: -webkit-fill-available; /* 古いiOSの保険 */
             width: 100vw;
             background-image: url('/preview/main/main.jpg');
             background-size: cover;
@@ -45,8 +53,8 @@
             flex-direction: column;
             gap: 35px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            height: 100vh;
-            max-height: 100dvh;
+            height: 100%;
+            max-height: none;
             overflow-y: auto;
         }
 
