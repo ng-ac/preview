@@ -61,7 +61,8 @@
 
 <body>
     <!-- 背景動画（1回だけ再生） -->
-    <video class="bg-video" autoplay muted playsinline preload="auto" disablepictureinpicture id="bgVideo">
+    <video class="bg-video" id="bgVideo" autoplay muted playsinline webkit-playsinline preload="auto"
+        disablepictureinpicture>
         <source src="./main.mp4" type="video/mp4">
     </video>
 
@@ -72,21 +73,37 @@
     </div>
 
     <script>
-        // 一回だけ再生して最後のフレームで停止
-        const video = document.getElementById('bgVideo');
-        video.addEventListener('ended', () => {
-            video.pause();
-            video.currentTime = video.duration;
-        });
-        document.addEventListener('touchstart', () => { if (video.paused) video.play(); });
+        const v = document.getElementById('bgVideo');
+        const tap = document.getElementById('tapToStart');
 
-        // Service Worker 登録（そのまま）
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/preview/service-worker.js')
-                    .catch(err => console.error('SW registration failed:', err));
-            });
+        function tryPlay() {
+            if (!v) return;
+            v.muted = true; // iOS用に明示
+            const p = v.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {
+                    // 自動再生失敗 → タップ誘導を出す
+                    tap.style.display = 'block';
+                });
+            }
         }
+
+        // いろんなタイミングで再生を試みる（PWA/iOSの気まぐれ対策）
+        document.addEventListener('DOMContentLoaded', tryPlay);
+        window.addEventListener('load', tryPlay);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
+
+        // ユーザー操作があれば確実に再生
+        ['touchend', 'click'].forEach(ev => {
+            document.addEventListener(ev, () => { tryPlay(); tap.style.display = 'none'; }, { once: true });
+            tap.addEventListener(ev, () => { tryPlay(); tap.style.display = 'none'; }, { once: true });
+        });
+
+        // 1回だけ再生して停止（最後のフレーム保持）
+        v.addEventListener('ended', () => {
+            v.pause();
+            v.currentTime = v.duration;
+        });
     </script>
 </body>
 
