@@ -6,23 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>umlimited</title>
 
-    <!-- PWA関連 -->
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" href="./unlimited.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" href="./unlimited.ico">
-    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/preview/main/manifest.json">
+    <link rel="icon" href="/preview/main/unlimited.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="/preview/main/unlimited.ico">
+    <link rel="stylesheet" href="/preview/main/main.css">
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="umlimited">
-    <meta name="theme-color" content="#000000">
 
-    <!-- フォント -->
     <link
         href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Poppins:wght@500;700&display=swap"
         rel="stylesheet">
-
-    <!-- スタイル -->
-    <link rel="stylesheet" href="/preview/main/main.css">
 
     <style>
         * {
@@ -37,10 +32,9 @@
             width: 100%;
             overflow: hidden;
             font-family: 'Poppins', 'Noto Sans JP', sans-serif;
-            background: #000;
         }
 
-        /* 背景動画 */
+        /* 背景動画（1回だけ再生） */
         .bg-video {
             position: fixed;
             inset: 0;
@@ -69,10 +63,9 @@
     <!-- 背景動画（1回だけ再生） -->
     <video class="bg-video" id="bgVideo" autoplay muted playsinline webkit-playsinline preload="auto"
         disablepictureinpicture>
-        <source src="/preview/main/main.mp4" type="video/mp4">
+        <source src="./main.mp4" type="video/mp4">
     </video>
 
-    <!-- 透明リンク（各ボタン位置に対応） -->
     <div class="overlay">
         <a href="/preview/yomogi/yomogi.html" class="btn-yomogi" aria-label="セルフよもぎ蒸し"></a>
         <a href="/preview/gym/gym.html" class="btn-gym" aria-label="プライベートジム"></a>
@@ -80,46 +73,37 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御 ===
         const v = document.getElementById('bgVideo');
-
-        function setProps() {
-            v.muted = true;
-            v.playsInline = true;
-            v.autoplay = true;
-        }
+        const tap = document.getElementById('tapToStart');
 
         function tryPlay() {
-            setProps();
+            if (!v) return;
+            v.muted = true; // iOS用に明示
             const p = v.play();
-            if (p && typeof p.catch === 'function') p.catch(() => { });
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {
+                    // 自動再生失敗 → タップ誘導を出す
+                    tap.style.display = 'block';
+                });
+            }
         }
 
-        // iOS・PWAで確実に再生を試みる
+        // いろんなタイミングで再生を試みる（PWA/iOSの気まぐれ対策）
         document.addEventListener('DOMContentLoaded', tryPlay);
         window.addEventListener('load', tryPlay);
-        window.addEventListener('focus', tryPlay);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
+
+        // ユーザー操作があれば確実に再生
         ['touchend', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => { tryPlay(); }, { once: true });
+            document.addEventListener(ev, () => { tryPlay(); tap.style.display = 'none'; }, { once: true });
+            tap.addEventListener(ev, () => { tryPlay(); tap.style.display = 'none'; }, { once: true });
         });
 
-        // 1回だけ再生して最後のフレームで停止
+        // 1回だけ再生して停止（最後のフレーム保持）
         v.addEventListener('ended', () => {
             v.pause();
             v.currentTime = v.duration;
         });
-    </script>
-
-    <script>
-        // === Service Worker 登録 ===
-        if ('serviceWorker' in navigator &&
-            (location.protocol === 'https:' || location.hostname === 'localhost')) {
-            navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-                .catch(err => console.error('SW registration failed:', err));
-        } else {
-            console.log('SW skipped (insecure context or unsupported).');
-        }
     </script>
 </body>
 
