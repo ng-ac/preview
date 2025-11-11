@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>umlimited</title>
 
     <link rel="manifest" href="/preview/main/manifest.json">
@@ -25,7 +25,8 @@
         }
 
         body {
-            height: 100vh;
+            height: -webkit-fill-available;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             width: 100vw;
             background-image: url('/preview/main/main.jpg');
             background-size: cover;
@@ -40,7 +41,6 @@
         /* 左側のメニュー */
         .menu {
             background-color: rgba(255, 255, 255, 0.7);
-            /* 半透明の白背景 */
             padding: 60px 50px;
             display: flex;
             flex-direction: column;
@@ -78,7 +78,7 @@
 
 <body>
     <nav class="menu">
-        <a href="/preview/yomogi/yomogi.html">ーセルフよもぎ蒸し</a>
+        <a href="/preview/yomogi/yomogi.html">ーよもぎ蒸し</a>
         <a href="#">ーcomming soon...</a>
         <a href="#">ーcomming soon...</a>
         <a href="#">ーcomming soon...</a>
