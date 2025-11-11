@@ -26,15 +26,18 @@
 
         html, body {
         height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
         }
 
         body {
-            min-height: 100dvh;      /* iOS16+ / 近年のブラウザ */
-            min-height: 100svh;      /* iOS15.4+ 対応（必要なら） */
-            min-height: -webkit-fill-available; /* 古いiOSの保険 */
+            height:100vh;
+            height: 100dvh;      /* iOS16+ / 近年のブラウザ */
+            height: 100svh;      /* iOS15.4+ 対応（必要なら） */
+            height: -webkit-fill-available; /* 古いiOSの保険 */
             width: 100vw;
+            overflow:hidden;
             background-image: url('/preview/main/main.jpg');
             background-size: cover;
             background-position: center;
@@ -43,6 +46,7 @@
             display: flex;
             align-items: stretch;
             justify-content: flex-start;
+            padding: 0;
         }
 
         /* 左側のメニュー */
@@ -58,7 +62,16 @@
             overflow-y: auto;
         }
 
+        html {
+        background-color: #000;
+        height: -webkit-fill-available;
+        }
+
         .menu a {
+            height: 100%;
+            max-height: none;
+            overflow-y: auto;
+            box-sizing: border-box;
             color: #333;
             font-size: 26px;
             text-decoration: none;
