@@ -10,18 +10,6 @@
     <link rel="manifest" href="/preview/main/manifest.json">
     <link rel="icon" href="/preview/main/unlimited.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="/preview/main/unlimited.ico">
-    <meta name="mobile-web-app-capable" content="yes"><!DOCTYPE html>
-<html lang="ja">
-
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>umlimited</title>
-
-    <!-- PWA -->
-    <link rel="manifest" href="/preview/main/manifest.json">
-    <link rel="icon" href="/preview/main/unlimited.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" href="/preview/main/unlimited.ico">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -70,75 +58,10 @@
             width: 100%;
             height: 100%;
         }
-
-        /* PWA起動時の透明タップエリア（iOS対策） */
-        .tap-to-start {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.01);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: auto;
-            transition: opacity 0.3s;
-        }
-
-        .tap-to-start.show {
-            opacity: 1;
-        }
-
-        .debug-info {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 10000;
-            background: rgba(0, 0, 0, 0.8);
-            color: #0f0;
-            padding: 10px;
-            font-size: 12px;
-            font-family: monospace;
-            border-radius: 5px;
-            max-width: 90%;
-            word-break: break-all;
-        }
-
-        .tap-prompt {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .tap-prompt.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .tap-prompt-text {
-            color: white;
-            font-size: 18px;
-            text-align: center;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-        }
     </style>
 </head>
 
 <body>
-    <div id="debugInfo" class="debug-info"></div>
-    <div id="tapPrompt" class="tap-prompt">
-        <div class="tap-prompt-text">タップして開始</div>
-    </div>
     <video id="bgVideo" class="bg-video" autoplay muted playsinline webkit-playsinline preload="auto"
         disablepictureinpicture disableRemotePlayback x-webkit-airplay="deny"></video>
 
@@ -148,23 +71,13 @@
         <a href="/preview/tanning/tanning.html" class="btn-tanning" aria-label="SELF TANNING"></a>
     </div>
 
-    <!-- PWA起動時の透明タップエリア -->
-    <div id="tapToStart" class="tap-to-start"></div>
-
     <script>
         const VIDEO_PATH = '/preview/main/main.mp4';
-        let debugEl = document.getElementById('debugInfo');
-        let tapPrompt = document.getElementById('tapPrompt');
+
         let videoEl = document.getElementById('bgVideo');
-        let hasUserInteracted = false;
-        let videoPlaying = false;
-
-        function updateDebug(msg) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugEl.innerHTML = `[${timestamp}] ${msg}<br>` + debugEl.innerHTML;
-        }
-
-        updateDebug('🚀 Start');
+        let blobUrl = null;
+        let playedThisCycle = false;
+        let retried = false;
 
         function setVideoFlags(v) {
             v.muted = true;
@@ -172,442 +85,147 @@
             v.setAttribute('muted', '');
             v.setAttribute('playsinline', '');
             v.setAttribute('webkit-playsinline', '');
+            v.autoplay = true;
             v.defaultMuted = true;
             v.volume = 0;
-            v.preload = 'auto';
+            v.removeAttribute('poster');
         }
 
-        // タップ促進表示
-        function showTapPrompt() {
-            tapPrompt.classList.add('show');
-            updateDebug('👆 Waiting for user tap...');
-        }
-
-        function hideTapPrompt() {
-            tapPrompt.classList.remove('show');
-            updateDebug('✓ User interaction received');
-        }
-
-        // 動画再生（ユーザーインタラクション後のみ確実に動く）
-        async function playVideoAfterInteraction() {
-            if (videoPlaying) return;
-
-            updateDebug('🎬 Playing with user interaction');
-
-            setVideoFlags(videoEl);
-
-            // 新鮮なソース
-            const cacheBuster = '?t=' + Date.now();
-            videoEl.src = VIDEO_PATH + cacheBuster;
-            videoEl.load();
-
-            // 読み込み待ち
-            await new Promise(resolve => {
-                if (videoEl.readyState >= 2) {
-                    resolve();
-                } else {
-                    videoEl.addEventListener('loadeddata', resolve, { once: true });
-                    setTimeout(resolve, 3000);
-                }
-            });
-
-            updateDebug(`✓ Loaded (${videoEl.duration}s)`);
-
-            try {
-                videoEl.currentTime = 0;
-                await videoEl.play();
-                videoPlaying = true;
-                updateDebug('✅ Playing!');
-
-                // 成功確認
-                setTimeout(() => {
-                    if (videoEl.currentTime > 0.05) {
-                        updateDebug(`🎉 SUCCESS! time=${videoEl.currentTime.toFixed(2)}s`);
-                        setTimeout(() => { debugEl.style.display = 'none'; }, 3000);
-                    } else {
-                        updateDebug(`⚠️ Still stuck at ${videoEl.currentTime}s`);
-                    }
-                }, 1000);
-
-            } catch (err) {
-                updateDebug(`❌ ${err.name}`);
-                videoPlaying = false;
+        function revokeBlob() {
+            if (blobUrl) {
+                try { URL.revokeObjectURL(blobUrl); } catch { }
+                blobUrl = null;
             }
         }
 
-        // ユーザーインタラクションハンドラ
-        function handleUserInteraction(e) {
-            if (hasUserInteracted) return;
-            hasUserInteracted = true;
-
-            hideTapPrompt();
-            playVideoAfterInteraction();
-
-            // リスナー削除
-            document.removeEventListener('touchstart', handleUserInteraction);
-            document.removeEventListener('click', handleUserInteraction);
-            tapPrompt.removeEventListener('touchstart', handleUserInteraction);
-            tapPrompt.removeEventListener('click', handleUserInteraction);
+        async function fetchVideoResponse() {
+            try {
+                if ('caches' in window) {
+                    const cached = await caches.match(VIDEO_PATH, { ignoreSearch: true });
+                    if (cached) return cached;
+                }
+            } catch { }
+            const resp = await fetch(VIDEO_PATH, { method: 'GET' });
+            if (!resp.ok) throw new Error('video fetch failed: ' + resp.status);
+            try {
+                if ('caches' in window) {
+                    const c = await caches.open('video-cache-simple');
+                    await c.put(VIDEO_PATH, resp.clone());
+                }
+            } catch { }
+            return resp;
         }
 
-        // 終了時処理
-        videoEl.addEventListener('ended', () => {
-            updateDebug('🏁 Ended');
+        function hardResetElement() {
+            const parent = videoEl.parentNode;
+            const next = document.createElement('video');
+            next.id = 'bgVideo';
+            next.className = 'bg-video';
+            next.setAttribute('autoplay', '');
+            next.setAttribute('muted', '');
+            next.setAttribute('playsinline', '');
+            next.setAttribute('webkit-playsinline', '');
+            next.setAttribute('preload', 'auto');
+            next.setAttribute('disablepictureinpicture', '');
+            next.setAttribute('disableRemotePlayback', '');
+            next.setAttribute('x-webkit-airplay', 'deny');
+
+            next.addEventListener('ended', onEnded);
+
+            parent.replaceChild(next, videoEl);
+            videoEl = next;
+            setVideoFlags(videoEl);
+        }
+
+        async function prepareBlobSource() {
+            revokeBlob();
+            const resp = await fetchVideoResponse();
+            const blob = await resp.blob();
+            blobUrl = URL.createObjectURL(blob);
+
+            try { videoEl.pause(); } catch { }
+            videoEl.removeAttribute('src');
+            videoEl.src = blobUrl;
+            videoEl.load();
+
+            await Promise.race([
+                new Promise(res => videoEl.addEventListener('loadeddata', res, { once: true })),
+                new Promise(res => setTimeout(res, 2000))
+            ]);
+        }
+
+        async function playOnceWithWatchdog() {
+            if (playedThisCycle) return;
+            playedThisCycle = true;
+
+            setVideoFlags(videoEl);
+            await prepareBlobSource();
+
+            try { videoEl.currentTime = 0; } catch { }
+            let playPromise;
+            try { playPromise = videoEl.play(); } catch { }
+
+            const ok = await new Promise(resolve => {
+                let fired = false;
+
+                const onOK = () => { if (!fired) { fired = true; cleanup(); resolve(true); } };
+                const onFail = () => { if (!fired) { fired = true; cleanup(); resolve(false); } };
+                const timer = setTimeout(onFail, 1200);
+
+                const cleanup = () => {
+                    clearTimeout(timer);
+                    videoEl.removeEventListener('playing', onOK);
+                    videoEl.removeEventListener('timeupdate', onOK);
+                    videoEl.removeEventListener('progress', onOK);
+                };
+
+                videoEl.addEventListener('playing', onOK, { once: true });
+                videoEl.addEventListener('timeupdate', onOK, { once: true });
+                videoEl.addEventListener('progress', onOK, { once: true });
+
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => { });
+                }
+            });
+
+            if (!ok && !retried) {
+                retried = true;
+                hardResetElement();
+                playedThisCycle = false;
+                await playOnceWithWatchdog();
+            }
+        }
+
+        async function onEnded() {
             try {
                 videoEl.pause();
-                const d = videoEl.duration || 0;
-                videoEl.currentTime = Math.max(0, d - 0.06);
-            } catch { }
-        });
-
-        // timeupdate監視
-        videoEl.addEventListener('timeupdate', function onTime() {
-            if (videoEl.currentTime > 0.1) {
-                updateDebug('✅ Video moving!');
-                videoEl.removeEventListener('timeupdate', onTime);
-            }
-        });
-
-        // 初期化：まず自動再生を試す
-        async function init() {
-            updateDebug('🔧 Init');
-
-            setVideoFlags(videoEl);
-            videoEl.src = VIDEO_PATH;
-            videoEl.load();
-
-            // 自動再生を試す
-            try {
-                await videoEl.play();
-                videoPlaying = true;
-                updateDebug('✅ Autoplay success!');
-
-                // 0.5秒後に確認
-                setTimeout(() => {
-                    if (videoEl.currentTime < 0.05) {
-                        updateDebug('⚠️ Autoplay failed (stuck at 0)');
-                        videoPlaying = false;
-                        showTapPrompt();
-                    } else {
-                        updateDebug('🎉 Autoplay working!');
-                        setTimeout(() => { debugEl.style.display = 'none'; }, 3000);
-                    }
-                }, 500);
-
-            } catch (err) {
-                updateDebug(`❌ Autoplay blocked: ${err.name}`);
-                videoPlaying = false;
-                showTapPrompt();
-            }
-        }
-
-        // リスナー設定
-        document.addEventListener('touchstart', handleUserInteraction, { passive: true });
-        document.addEventListener('click', handleUserInteraction);
-        tapPrompt.addEventListener('touchstart', handleUserInteraction, { passive: true });
-        tapPrompt.addEventListener('click', handleUserInteraction);
-
-        // 起動
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(init, 100);
-            });
-        } else {
-            setTimeout(init, 100);
-        }
-
-        window.addEventListener('load', () => {
-            if (!videoPlaying) setTimeout(init, 200);
-        });
-
-        // PWA復帰時
-        window.addEventListener('pageshow', () => {
-            updateDebug('📄 pageshow');
-            hasUserInteracted = false;
-            videoPlaying = false;
-            setTimeout(init, 100);
-        });
-
-        updateDebug('✓ Setup complete');
-    </script>
-</body>
-
-</html>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="umlimited">
-    <meta name="theme-color" content="#000000">
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Poppins:wght@500;700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="/preview/main/main.css">
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            background: #000;
-            font-family: 'Poppins', 'Noto Sans JP', sans-serif;
-        }
-
-        .bg-video {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .bg-video::-webkit-media-controls {
-            display: none !important;
-        }
-
-        .overlay {
-            position: relative;
-            z-index: 5;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* PWA起動時の透明タップエリア（iOS対策） */
-        .tap-to-start {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.01);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: auto;
-            transition: opacity 0.3s;
-        }
-
-        .tap-to-start.show {
-            opacity: 1;
-        }
-
-        .debug-info {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 10000;
-            background: rgba(0, 0, 0, 0.8);
-            color: #0f0;
-            padding: 10px;
-            font-size: 12px;
-            font-family: monospace;
-            border-radius: 5px;
-            max-width: 90%;
-            word-break: break-all;
-        }
-    </style>
-</head>
-
-<body>
-    <div id="debugInfo" class="debug-info"></div>
-    <video id="bgVideo" class="bg-video" autoplay muted playsinline webkit-playsinline preload="auto"
-        disablepictureinpicture disableRemotePlayback x-webkit-airplay="deny"></video>
-
-    <div class="overlay">
-        <a href="/preview/yomogi/yomogi.html" class="btn-yomogi" aria-label="セルフよもぎ蒸し"></a>
-        <a href="/preview/gym/gym.html" class="btn-gym" aria-label="プライベートジム"></a>
-        <a href="/preview/tanning/tanning.html" class="btn-tanning" aria-label="SELF TANNING"></a>
-    </div>
-
-    <!-- PWA起動時の透明タップエリア -->
-    <div id="tapToStart" class="tap-to-start"></div>
-
-    <script>
-        const VIDEO_PATH = '/preview/main/main.mp4';
-        let debugEl = document.getElementById('debugInfo');
-        let videoEl = document.getElementById('bgVideo');
-        let isPlaying = false;
-
-        function updateDebug(msg) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugEl.innerHTML = `[${timestamp}] ${msg}<br>` + debugEl.innerHTML;
-        }
-
-        updateDebug('🚀 Script start');
-
-        // video要素を完全に作り直す（iOS PWA対策）
-        function recreateVideoElement() {
-            updateDebug('🔄 Recreating video element');
-
-            const parent = videoEl.parentNode;
-            const newVideo = document.createElement('video');
-
-            // 属性コピー
-            newVideo.id = 'bgVideo';
-            newVideo.className = 'bg-video';
-            newVideo.muted = true;
-            newVideo.playsInline = true;
-            newVideo.autoplay = true;
-            newVideo.preload = 'auto';
-            newVideo.defaultMuted = true;
-            newVideo.volume = 0;
-
-            newVideo.setAttribute('muted', '');
-            newVideo.setAttribute('playsinline', '');
-            newVideo.setAttribute('webkit-playsinline', '');
-            newVideo.setAttribute('disablepictureinpicture', '');
-            newVideo.setAttribute('disableRemotePlayback', '');
-            newVideo.setAttribute('x-webkit-airplay', 'deny');
-
-            // イベントリスナー設定
-            newVideo.addEventListener('loadedmetadata', () => {
-                updateDebug(`📊 ${newVideo.videoWidth}x${newVideo.videoHeight}, ${newVideo.duration}s`);
-            });
-
-            newVideo.addEventListener('playing', () => {
-                updateDebug('▶️ PLAYING');
-            });
-
-            newVideo.addEventListener('timeupdate', function onTime() {
-                if (newVideo.currentTime > 0.1) {
-                    updateDebug(`✅ ACTUALLY MOVING! (${newVideo.currentTime.toFixed(2)}s)`);
-                    newVideo.removeEventListener('timeupdate', onTime);
-                    setTimeout(() => { debugEl.style.display = 'none'; }, 3000);
-                }
-            });
-
-            newVideo.addEventListener('ended', () => {
-                updateDebug('🏁 Ended');
+                const d = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
+                const t = Math.max(0, d - 0.06);
+                videoEl.currentTime = t;
                 try {
-                    newVideo.pause();
-                    const d = newVideo.duration || 0;
-                    newVideo.currentTime = Math.max(0, d - 0.06);
+                    const p = videoEl.play();
+                    if (p && typeof p.then === 'function') await p.catch(() => { });
                 } catch { }
-            });
-
-            newVideo.addEventListener('error', () => {
-                const err = newVideo.error;
-                if (err) updateDebug(`💥 ERROR: ${err.code}`);
-            });
-
-            // 要素を置き換え
-            parent.replaceChild(newVideo, videoEl);
-            videoEl = newVideo;
-
-            updateDebug('✓ Video element recreated');
-            return newVideo;
+                videoEl.pause();
+            } catch { }
         }
 
-        async function playVideo() {
-            if (isPlaying) return;
+        videoEl.addEventListener('ended', onEnded);
 
-            updateDebug('🎬 Play attempt');
-
-            // 要素を新しく作り直す
-            const video = recreateVideoElement();
-
-            // キャッシュバスター付きでソース設定
-            const cacheBuster = '?v=' + Date.now();
-            video.src = VIDEO_PATH + cacheBuster;
-
-            updateDebug('📥 Loading...');
-            video.load();
-
-            // loadeddata待ち
-            await new Promise(resolve => {
-                if (video.readyState >= 2) {
-                    resolve();
-                } else {
-                    video.addEventListener('loadeddata', resolve, { once: true });
-                    setTimeout(resolve, 5000);
-                }
-            });
-
-            updateDebug(`✓ Loaded (ready: ${video.readyState})`);
-
-            // 再生
-            try {
-                video.currentTime = 0;
-                await video.play();
-                isPlaying = true;
-                updateDebug('✅ play() called');
-
-                // 1秒後確認
-                setTimeout(() => {
-                    updateDebug(`🔍 time=${video.currentTime.toFixed(3)}s, paused=${video.paused}`);
-
-                    if (video.currentTime < 0.05) {
-                        updateDebug('⚠️ Still at 0! Retrying...');
-                        isPlaying = false;
-
-                        // もう一度だけ試す
-                        setTimeout(() => {
-                            video.currentTime = 0;
-                            video.play().then(() => {
-                                updateDebug('🔄 Retry play() done');
-                            }).catch(e => {
-                                updateDebug(`❌ Retry failed: ${e.name}`);
-                            });
-                        }, 100);
-                    }
-                }, 1000);
-
-            } catch (err) {
-                updateDebug(`❌ ${err.name}`);
-                isPlaying = false;
-            }
-        }
-
-        // 初期化
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                updateDebug('✓ DOM ready');
-                setTimeout(playVideo, 200);
-            });
-        } else {
-            updateDebug('✓ DOM already ready');
-            setTimeout(playVideo, 200);
-        }
-
-        window.addEventListener('load', () => {
-            updateDebug('✓ Window loaded');
-            if (!isPlaying) setTimeout(playVideo, 300);
+        window.addEventListener('DOMContentLoaded', () => {
+            retried = false;
+            playedThisCycle = false;
+            playOnceWithWatchdog();
         });
 
-        // PWA復帰時
-        window.addEventListener('pageshow', (e) => {
-            updateDebug('📄 pageshow');
-            isPlaying = false;
-            setTimeout(playVideo, 200);
+        window.addEventListener('pageshow', () => {
+            retried = false;
+            playedThisCycle = false;
+            playOnceWithWatchdog();
         });
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !isPlaying) {
-                updateDebug('👁️ Visible');
-                setTimeout(playVideo, 200);
-            }
-        });
-
-        // タッチ保険
-        let touched = false;
-        document.addEventListener('touchstart', () => {
-            if (!touched) {
-                touched = true;
-                updateDebug('👆 Touch');
-                isPlaying = false;
-                setTimeout(playVideo, 50);
-            }
-        }, { once: true, passive: true });
-
-        updateDebug('✓ Setup done');
+        window.addEventListener('pagehide', revokeBlob);
+        window.addEventListener('beforeunload', revokeBlob);
     </script>
 </body>
 
