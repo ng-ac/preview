@@ -93,11 +93,9 @@
 </head>
 
 <body>
-    <!-- 背景動画 -->
+    <!-- 背景動画（srcはJSで毎回Blob URLに差し替える） -->
     <video class="bg-video" id="bgVideo" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture
-        disableRemotePlayback>
-        <source src="/preview/main/main.mp4" type="video/mp4">
-    </video>
+        disableRemotePlayback></video>
 
     <!-- 透明リンク -->
     <div class="overlay">
@@ -113,16 +111,19 @@
 
     <script>
         // ===============================
-        // 背景動画：PWA再入場安定 & 終了時は「最後のフレームで静止」
+        // 背景動画：2回目以降の起動でも必ず再生させる
+        // アプローチ：毎回 fetch → Blob → objectURL を video.src に適用
+        // これにより URL が毎回ユニークになり、デコーダが確実に再初期化される
+        // SW はそのままでOK（キャッシュから即時返る）
         // ===============================
-        const BASE_VIDEO_PATH = '/preview/main/main.mp4'; // SW(v5)はパス正規化でキャッシュ
+        const BASE_VIDEO_PATH = '/preview/main/main.mp4';
         const v = document.getElementById('bgVideo');
         const tap = document.getElementById('tapToPlay');
         const tapBtn = document.getElementById('tapToPlayBtn');
 
         let playLock = false;   // 多重 play() 防止
         let lastPlayAt = 0;     // 短時間呼び出し抑制
-        let retryCount = 0;
+        let currentBlobUrl = null;
 
         function setVideoProps() {
             v.muted = true;
@@ -136,70 +137,54 @@
             v.removeAttribute('poster');
         }
 
-        // 軽いキャッシュバスター（同一URL問題の回避）
-        function makeBustedUrl() {
-            const bust = Date.now().toString(36);
-            return `${BASE_VIDEO_PATH}?v=${bust}`;
+        function revokeBlobUrl() {
+            if (currentBlobUrl) {
+                try { URL.revokeObjectURL(currentBlobUrl); } catch (_) { }
+                currentBlobUrl = null;
+            }
         }
 
-        async function softReloadSource(withBuster = true) {
-            const srcEl = v.querySelector('source') || document.createElement('source');
-            const nextUrl = withBuster ? makeBustedUrl() : BASE_VIDEO_PATH;
-
-            if (!srcEl.parentNode) {
-                srcEl.type = 'video/mp4';
-                v.appendChild(srcEl);
-            }
-            if (srcEl.src.replace(location.origin, '') === nextUrl) {
-                try { v.removeAttribute('src'); } catch (_) { }
-            }
-            srcEl.src = nextUrl;
-            v.load();
-
-            await Promise.race([
-                new Promise(res => v.addEventListener('loadeddata', res, { once: true })),
-                new Promise(res => setTimeout(res, 2000))
-            ]);
+        async function buildBlobUrl() {
+            // SW が mp4 をキャッシュ済みなら、ここでの fetch はキャッシュヒット（即応答）
+            // Range 要求は使わず全体取得でOK（objectURL再生は先頭からで十分）
+            const resp = await fetch(BASE_VIDEO_PATH, { method: 'GET' });
+            if (!resp.ok) throw new Error('video fetch failed: ' + resp.status);
+            const blob = await resp.blob();
+            return URL.createObjectURL(blob);
         }
 
-        async function hardResetVideo() {
+        async function loadFromBlob() {
+            revokeBlobUrl();
+            const url = await buildBlobUrl();
+            currentBlobUrl = url;
+
+            // iOSでの復元バグ回避：一旦srcをクリアしてから新URLを適用
             try { v.pause(); } catch (_) { }
-            try { v.removeAttribute('src'); } catch (_) { }
-            while (v.firstChild) v.removeChild(v.firstChild);
-
-            const srcEl = document.createElement('source');
-            srcEl.type = 'video/mp4';
-            srcEl.src = makeBustedUrl();
-            v.appendChild(srcEl);
-
-            setVideoProps();
+            v.removeAttribute('src');
+            v.src = url;
             v.load();
 
+            // loadeddata を待つ（2秒タイムアウト）
             await Promise.race([
                 new Promise(res => v.addEventListener('loadeddata', res, { once: true })),
                 new Promise(res => setTimeout(res, 2000))
             ]);
         }
 
-        async function tryPlayOnce({ useBuster = true, hardReset = false } = {}) {
+        async function tryPlayOnce({ hardReload = false } = {}) {
             setVideoProps();
 
-            if (hardReset) {
-                await hardResetVideo();
-            } else {
-                await softReloadSource(useBuster);
+            if (hardReload || !currentBlobUrl) {
+                await loadFromBlob();
             }
 
             try {
-                // 再生開始は先頭から
+                // 先頭から再生
                 try { if (!Number.isFinite(v.currentTime) || v.currentTime > 0.1) v.currentTime = 0; } catch (_) { }
                 await v.play();
-                retryCount = 0;
                 hideTap();
-                console.log(`✓ video playing (${hardReset ? 'hard' : 'soft'} / buster:${useBuster})`);
                 return true;
             } catch (err) {
-                console.log('play failed:', err && err.name || err);
                 return false;
             }
         }
@@ -209,53 +194,54 @@
             if (playLock || (now - lastPlayAt) < 400) return;
             playLock = true; lastPlayAt = now;
 
-            let ok = await tryPlayOnce({ useBuster: true, hardReset: false });
-            if (!ok) ok = await tryPlayOnce({ useBuster: false, hardReset: false });
-            if (!ok) ok = await tryPlayOnce({ useBuster: true, hardReset: true });
+            // 1) 既存BlobURLで再生
+            let ok = await tryPlayOnce({ hardReload: false });
 
+            // 2) ダメなら BlobURL を作り直し（強制再初期化）
+            if (!ok) {
+                ok = await tryPlayOnce({ hardReload: true });
+            }
+
+            // 3) それでもダメならタップ誘導
             if (!ok) showTap();
+
             playLock = false;
         }
 
-        function showTap() { tap.style.display = 'flex'; }
-        function hideTap() { tap.style.display = 'none'; }
-
-        // ==== ここが重要：終了時は「最後のフレームで静止」 ====
+        // 終了時は「最後のフレームで静止」
         v.addEventListener('ended', async () => {
             try {
                 v.pause();
-                // ごく僅か手前にシーク（Safariのブラックアウト回避）
                 const d = Number.isFinite(v.duration) ? v.duration : 0;
-                const target = Math.max(0, d - 0.04); // 40ms手前
+                const target = Math.max(0, d - 0.06); // 60ms手前
                 v.currentTime = target;
-
-                // 1フレームだけ「再生→即停止」で最後の絵を確実に描画
-                // （muted なので音は出ません）
                 try {
                     const p = v.play();
-                    if (p && typeof p.then === 'function') {
-                        await p.catch(() => { });
-                    }
+                    if (p && typeof p.then === 'function') { await p.catch(() => { }); }
                 } catch (_) { }
                 v.pause();
             } catch (_) { }
         });
 
-        // タップで強制再生
+        // 再生できない場合のフォールバックUI
+        function showTap() { tap.style.display = 'flex'; }
+        function hideTap() { tap.style.display = 'none'; }
+
         tapBtn.addEventListener('click', () => { hideTap(); forcePlay(); }, { passive: true });
         document.addEventListener('touchstart', () => { hideTap(); forcePlay(); }, { once: true, passive: true });
 
         // 初回（Web/ホーム画面起動とも）
         window.addEventListener('load', forcePlay);
 
-        // アプリ復帰・再表示時
+        // アプリ復帰・再表示時（PWAの2回目以降の起動含む）
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) setTimeout(forcePlay, 80);
         });
-        window.addEventListener('pageshow', (ev) => {
-            setTimeout(forcePlay, 80);
-        });
+        window.addEventListener('pageshow', () => { setTimeout(forcePlay, 80); });
         window.addEventListener('focus', () => { setTimeout(forcePlay, 80); });
+
+        // ページ遷移や再読込時に Blob URL を破棄（メモリリーク防止）
+        window.addEventListener('beforeunload', revokeBlobUrl);
 
         // Service Worker 登録（v5想定）
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
