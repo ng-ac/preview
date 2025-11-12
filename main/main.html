@@ -116,27 +116,20 @@
         const videoEl = document.getElementById('bgVideo');
         const startScreen = document.getElementById('startScreen');
         const startButton = document.getElementById('startButton');
+        let hasPlayedThisSession = false;
 
         videoEl.muted = true;
         videoEl.volume = 0;
         videoEl.defaultMuted = true;
 
-        // localStorage で初回判定
-        const hasStartedBefore = localStorage.getItem('videoStarted') === 'true';
-
-        // 初回以降ならスタート画面を非表示
-        if (hasStartedBefore) {
-            startScreen.style.display = 'none';
-        }
-
         // Startボタンクリック時
         async function handleStart() {
+            if (hasPlayedThisSession) return;
+            hasPlayedThisSession = true;
+
             try {
                 videoEl.currentTime = 0;
                 await videoEl.play();
-
-                // localStorage に保存
-                localStorage.setItem('videoStarted', 'true');
 
                 // スタート画面をフェードアウト
                 startScreen.classList.add('hide');
@@ -145,7 +138,7 @@
                 }, 500);
 
             } catch (err) {
-                // エラー時は何もしない
+                hasPlayedThisSession = false;
             }
         }
 
@@ -160,43 +153,18 @@
             }
         });
 
-        // 初回以降の自動再生
-        if (hasStartedBefore) {
-            const autoPlay = async () => {
-                try {
-                    videoEl.currentTime = 0;
-                    await videoEl.play();
-                } catch (err) {
-                    // 自動再生失敗時はスタート画面を表示
-                    startScreen.style.display = 'flex';
-                }
-            };
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    setTimeout(autoPlay, 100);
-                });
-            } else {
-                setTimeout(autoPlay, 100);
-            }
-        }
-
-        // PWA復帰時
+        // PWA復帰時：スタート画面を再表示
         window.addEventListener('pageshow', () => {
-            if (hasStartedBefore && videoEl.paused) {
-                videoEl.currentTime = 0;
-                videoEl.play().catch(() => {
-                    // 失敗時はスタート画面表示
-                    startScreen.style.display = 'flex';
-                    startScreen.classList.remove('hide');
-                });
+            if (!hasPlayedThisSession) {
+                startScreen.style.display = 'flex';
+                startScreen.classList.remove('hide');
             }
         });
 
         window.addEventListener('visibilitychange', () => {
-            if (!document.hidden && hasStartedBefore && videoEl.paused) {
-                videoEl.currentTime = 0;
-                videoEl.play().catch(() => { });
+            if (!document.hidden && !hasPlayedThisSession) {
+                startScreen.style.display = 'flex';
+                startScreen.classList.remove('hide');
             }
         });
     </script>
