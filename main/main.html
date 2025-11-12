@@ -96,7 +96,10 @@
         const VIDEO_PATH = '/preview/main/main.mp4';
 
         let videoEl = document.getElementById('bgVideo');
-        let hasPlayed = false;
+        let tapOverlay = document.getElementById('tapToStart');
+        let blobUrl = null;
+        let hasPlayedOnce = false;
+        let isPreparingVideo = false;
 
         function setVideoFlags(v) {
             v.muted = true;
@@ -104,112 +107,199 @@
             v.setAttribute('muted', '');
             v.setAttribute('playsinline', '');
             v.setAttribute('webkit-playsinline', '');
+            v.autoplay = true;
             v.defaultMuted = true;
             v.volume = 0;
+            v.removeAttribute('poster');
         }
 
-        // シンプルな再生関数
-        async function playVideo() {
-            if (hasPlayed) return;
+        function revokeBlob() {
+            if (blobUrl) {
+                try { URL.revokeObjectURL(blobUrl); } catch { }
+                blobUrl = null;
+            }
+        }
+
+        async function fetchVideoResponse() {
+            try {
+                if ('caches' in window) {
+                    const cached = await caches.match(VIDEO_PATH, { ignoreSearch: true });
+                    if (cached) return cached;
+                }
+            } catch { }
+            const resp = await fetch(VIDEO_PATH, { method: 'GET' });
+            if (!resp.ok) throw new Error('video fetch failed: ' + resp.status);
+            try {
+                if ('caches' in window) {
+                    const c = await caches.open('video-cache-simple');
+                    await c.put(VIDEO_PATH, resp.clone());
+                }
+            } catch { }
+            return resp;
+        }
+
+        async function prepareBlobSource() {
+            if (isPreparingVideo) return;
+            isPreparingVideo = true;
+
+            revokeBlob();
+            const resp = await fetchVideoResponse();
+            const blob = await resp.blob();
+            blobUrl = URL.createObjectURL(blob);
+
+            try { videoEl.pause(); } catch { }
+            videoEl.removeAttribute('src');
+            videoEl.src = blobUrl;
+            videoEl.load();
+
+            await Promise.race([
+                new Promise(res => videoEl.addEventListener('loadeddata', res, { once: true })),
+                new Promise(res => setTimeout(res, 3000))
+            ]);
+
+            isPreparingVideo = false;
+        }
+
+        async function tryPlayVideo() {
+            if (hasPlayedOnce) return true;
 
             setVideoFlags(videoEl);
 
-            // srcが未設定なら設定
-            if (!videoEl.src || videoEl.src === '') {
-                videoEl.src = VIDEO_PATH;
-                videoEl.load();
-
-                // loadeddata待機
-                if (videoEl.readyState < 2) {
-                    await new Promise(resolve => {
-                        videoEl.addEventListener('loadeddata', resolve, { once: true });
-                        setTimeout(resolve, 3000);
-                    });
-                }
+            if (!blobUrl) {
+                await prepareBlobSource();
             }
 
+            try { videoEl.currentTime = 0; } catch { }
+
             try {
-                videoEl.currentTime = 0;
-                await videoEl.play();
-                hasPlayed = true;
-                console.log('✅ Video playing');
+                const playPromise = videoEl.play();
+                if (playPromise) {
+                    await playPromise;
+                }
+
+                // 再生成功を確認
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => reject(new Error('timeout')), 1500);
+                    const onPlay = () => {
+                        clearTimeout(timer);
+                        videoEl.removeEventListener('playing', onPlay);
+                        videoEl.removeEventListener('timeupdate', onPlay);
+                        resolve();
+                    };
+                    videoEl.addEventListener('playing', onPlay, { once: true });
+                    videoEl.addEventListener('timeupdate', onPlay, { once: true });
+                });
+
+                hasPlayedOnce = true;
+                hideTapOverlay();
+                return true;
+
             } catch (err) {
-                console.log('❌ Play failed:', err.message);
+                return false;
+            }
+        }
+
+        function showTapOverlay() {
+            tapOverlay.classList.add('show');
+            tapOverlay.style.pointerEvents = 'auto';
+        }
+
+        function hideTapOverlay() {
+            tapOverlay.classList.remove('show');
+            setTimeout(() => {
+                tapOverlay.style.pointerEvents = 'none';
+            }, 300);
+        }
+
+        // ユーザーインタラクション時の再生
+        async function handleUserInteraction() {
+            const success = await tryPlayVideo();
+            if (success) {
+                // 全てのイベントリスナーを削除
+                document.removeEventListener('touchstart', handleUserInteraction);
+                document.removeEventListener('touchend', handleUserInteraction);
+                document.removeEventListener('click', handleUserInteraction);
+                tapOverlay.removeEventListener('touchstart', handleUserInteraction);
+                tapOverlay.removeEventListener('click', handleUserInteraction);
             }
         }
 
         // 終了時処理
-        function onEnded() {
+        async function onEnded() {
             try {
                 videoEl.pause();
-                const d = videoEl.duration || 0;
-                videoEl.currentTime = Math.max(0, d - 0.06);
+                const d = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
+                const t = Math.max(0, d - 0.06);
+                videoEl.currentTime = t;
+                try {
+                    const p = videoEl.play();
+                    if (p && typeof p.then === 'function') await p.catch(() => { });
+                } catch { }
+                videoEl.pause();
             } catch { }
         }
 
         videoEl.addEventListener('ended', onEnded);
 
-        // === 起動時の処理 ===
+        // 初期化処理
+        async function initVideo() {
+            // 動画準備（バックグラウンド）
+            prepareBlobSource();
 
-        // 1. 即座に動画ソース設定（バックグラウンドで読み込み開始）
-        videoEl.src = VIDEO_PATH;
-        videoEl.load();
+            // まず自動再生を試行
+            const success = await tryPlayVideo();
 
-        // 2. DOMContentLoaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(playVideo, 100);
-            });
-        } else {
-            setTimeout(playVideo, 100);
+            if (!success) {
+                // 自動再生失敗 → ユーザーインタラクション待ち
+                showTapOverlay();
+
+                // 複数のイベントで確実にキャッチ
+                document.addEventListener('touchstart', handleUserInteraction, { passive: true });
+                document.addEventListener('touchend', handleUserInteraction, { passive: true });
+                document.addEventListener('click', handleUserInteraction);
+                tapOverlay.addEventListener('touchstart', handleUserInteraction, { passive: true });
+                tapOverlay.addEventListener('click', handleUserInteraction);
+            }
         }
 
-        // 3. load（完全読み込み後）
+        // PWA起動検知（複数トリガー）
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initVideo);
+        } else {
+            initVideo();
+        }
+
         window.addEventListener('load', () => {
-            setTimeout(playVideo, 200);
+            if (!hasPlayedOnce) {
+                setTimeout(initVideo, 100);
+            }
         });
 
-        // 4. 複数タイミングで自動リトライ
-        setTimeout(playVideo, 500);
-        setTimeout(playVideo, 1000);
-        setTimeout(playVideo, 1500);
-        setTimeout(playVideo, 2000);
-
-        // 5. pageshow（PWA復帰・履歴戻り）
-        window.addEventListener('pageshow', () => {
-            hasPlayed = false;
-            setTimeout(playVideo, 100);
-            setTimeout(playVideo, 500);
+        // 戻ってきた時
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted || !hasPlayedOnce) {
+                hasPlayedOnce = false;
+                initVideo();
+            }
         });
 
-        // 6. visibilitychange（フォアグラウンド復帰）
+        // visibilitychange（PWA復帰時）
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !hasPlayed) {
-                setTimeout(playVideo, 100);
-                setTimeout(playVideo, 500);
+            if (!document.hidden && !hasPlayedOnce) {
+                initVideo();
             }
         });
 
-        // 7. focus（ウィンドウフォーカス取得時）
+        // focus（PWA復帰時の追加トリガー）
         window.addEventListener('focus', () => {
-            if (!hasPlayed) {
-                setTimeout(playVideo, 100);
+            if (!hasPlayedOnce) {
+                setTimeout(initVideo, 50);
             }
         });
 
-        // 8. touchstart（最初のタッチで確実に）
-        let touchHandled = false;
-        document.addEventListener('touchstart', () => {
-            if (!touchHandled) {
-                touchHandled = true;
-                playVideo();
-            }
-        }, { once: true, passive: true });
-
-        // 9. click（タップの保険）
-        document.addEventListener('click', () => {
-            playVideo();
-        }, { once: true });
+        // メモリ解放
+        window.addEventListener('pagehide', revokeBlob);
+        window.addEventListener('beforeunload', revokeBlob);
     </script>
 </body>
 
