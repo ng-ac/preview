@@ -76,8 +76,9 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御（PWA対応強化版） ===
+        // === 背景動画の再生制御（キャッシュ対応版） ===
         const v = document.getElementById('bgVideo');
+        let playStarted = false;
 
         function setProps() {
             v.muted = true;
@@ -87,54 +88,58 @@
             v.setAttribute('muted', '');
             v.autoplay = true;
             v.defaultMuted = true;
+            v.volume = 0;
         }
 
         async function tryPlay() {
+            if (playStarted) return;
             setProps();
 
-            // 動画を最初から再読み込み
-            v.load();
-
             try {
-                const playPromise = v.play();
-                if (playPromise !== undefined) {
-                    await playPromise;
-                }
+                // 動画を強制リロード（キャッシュでも新規読み込み）
+                const currentSrc = v.querySelector('source').src;
+                v.querySelector('source').src = '';
+                v.load();
+                v.querySelector('source').src = currentSrc;
+                v.load();
+
+                await v.play();
+                playStarted = true;
             } catch (err) {
                 // 失敗時は少し待ってリトライ
                 setTimeout(async () => {
                     try {
+                        v.load();
                         await v.play();
+                        playStarted = true;
                     } catch (e) {
-                        // 最終手段：ユーザー操作を待つ
-                        document.addEventListener('touchstart', () => v.play(), { once: true, passive: true });
+                        console.log('Play failed:', e);
                     }
-                }, 100);
+                }, 200);
             }
         }
 
-        // 複数タイミングで再生試行
+        // 各種イベントで再生試行
         document.addEventListener('DOMContentLoaded', tryPlay);
         window.addEventListener('load', tryPlay);
         window.addEventListener('pageshow', tryPlay);
-        window.addEventListener('focus', tryPlay);
 
+        // PWA再起動時の対応
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) tryPlay();
+            if (!document.hidden && !playStarted) {
+                playStarted = false;
+                setTimeout(tryPlay, 100);
+            }
         });
 
-        // PWA起動時も即座に試行
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-            setTimeout(tryPlay, 100);
-            setTimeout(tryPlay, 500);
-        }
-
-        // 念のためタッチイベントでも試行
+        // 念のためユーザー操作でも
         ['touchstart', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => tryPlay(), { once: true, passive: true });
+            document.addEventListener(ev, () => {
+                if (!playStarted) tryPlay();
+            }, { once: true, passive: true });
         });
 
-        // 再生終了時の処理
+        // 再生終了時
         v.addEventListener('ended', () => {
             v.pause();
             v.currentTime = v.duration;
