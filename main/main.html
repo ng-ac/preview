@@ -78,39 +78,81 @@
     <script>
         // === 背景動画の再生制御 ===
         const v = document.getElementById('bgVideo');
+        let playAttempted = false;
 
         function setProps() {
             v.muted = true;
             v.playsInline = true;
+            v.setAttribute('playsinline', '');
+            v.setAttribute('webkit-playsinline', '');
             v.autoplay = true;
         }
 
-        function tryPlay() {
+        async function tryPlay() {
             setProps();
-            const p = v.play();
-            if (p && typeof p.catch === 'function') p.catch(() => { });
+            if (playAttempted && v.currentTime > 0) return;
+
+            try {
+                await v.play();
+                playAttempted = true;
+            } catch (err) {
+                // 再生ブロックされた場合は無音で待機
+            }
         }
 
+        // PWA起動時のみタップ促進表示
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator.standalone === true);
+
+        if (isPWA) {
+            const startOverlay = document.createElement('div');
+            startOverlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        `;
+            startOverlay.innerHTML = `
+            <div style="color:#fff; font-size:18px; text-align:center; padding:20px;">
+                タップして開始
+            </div>
+        `;
+
+            startOverlay.addEventListener('click', async () => {
+                await tryPlay();
+                startOverlay.remove();
+            }, { once: true });
+
+            document.body.appendChild(startOverlay);
+        }
+
+        // 通常ブラウザでの自動再生トリガー
         document.addEventListener('DOMContentLoaded', tryPlay);
         window.addEventListener('load', tryPlay);
         window.addEventListener('focus', tryPlay);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
-        ['touchend', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => { tryPlay(); }, { once: true });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) tryPlay();
         });
 
+        ['touchstart', 'click'].forEach(ev => {
+            document.addEventListener(ev, tryPlay, { once: true, passive: true });
+        });
+
+        // 再生終了時の処理
         v.addEventListener('ended', () => {
             v.pause();
             v.currentTime = v.duration;
         });
 
-                // === Service Worker 登録 ===
+        // === Service Worker 登録 ===
         if ('serviceWorker' in navigator &&
             (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/preview/service-worker.js', { scope: './' })
                 .catch(err => console.error('SW registration failed:', err));
-        } else {
-            console.log('SW skipped (insecure context or unsupported).');
         }
     </script>
 </body>
