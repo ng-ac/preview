@@ -58,6 +58,20 @@
             width: 100%;
             height: 100%;
         }
+
+        /* タップ促進（PWA初回起動時のみ表示） */
+        .tap-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.01);
+            display: none;
+            pointer-events: auto;
+        }
+
+        .tap-overlay.show {
+            display: block;
+        }
     </style>
 </head>
 
@@ -71,13 +85,16 @@
         <a href="/preview/tanning/tanning.html" class="btn-tanning" aria-label="SELF TANNING"></a>
     </div>
 
+    <!-- 透明タップエリア（PWA初回起動時） -->
+    <div id="tapOverlay" class="tap-overlay"></div>
+
     <script>
         const VIDEO_PATH = '/preview/main/main.mp4';
 
         let videoEl = document.getElementById('bgVideo');
+        let tapOverlay = document.getElementById('tapOverlay');
         let blobUrl = null;
-        let playedThisCycle = false;
-        let retried = false;
+        let hasInteracted = false;
 
         function setVideoFlags(v) {
             v.muted = true;
@@ -116,27 +133,6 @@
             return resp;
         }
 
-        function hardResetElement() {
-            const parent = videoEl.parentNode;
-            const next = document.createElement('video');
-            next.id = 'bgVideo';
-            next.className = 'bg-video';
-            next.setAttribute('autoplay', '');
-            next.setAttribute('muted', '');
-            next.setAttribute('playsinline', '');
-            next.setAttribute('webkit-playsinline', '');
-            next.setAttribute('preload', 'auto');
-            next.setAttribute('disablepictureinpicture', '');
-            next.setAttribute('disableRemotePlayback', '');
-            next.setAttribute('x-webkit-airplay', 'deny');
-
-            next.addEventListener('ended', onEnded);
-
-            parent.replaceChild(next, videoEl);
-            videoEl = next;
-            setVideoFlags(videoEl);
-        }
-
         async function prepareBlobSource() {
             revokeBlob();
             const resp = await fetchVideoResponse();
@@ -154,45 +150,17 @@
             ]);
         }
 
-        async function playOnceWithWatchdog() {
-            if (playedThisCycle) return;
-            playedThisCycle = true;
-
+        async function playVideo() {
             setVideoFlags(videoEl);
             await prepareBlobSource();
 
             try { videoEl.currentTime = 0; } catch { }
-            let playPromise;
-            try { playPromise = videoEl.play(); } catch { }
 
-            const ok = await new Promise(resolve => {
-                let fired = false;
-
-                const onOK = () => { if (!fired) { fired = true; cleanup(); resolve(true); } };
-                const onFail = () => { if (!fired) { fired = true; cleanup(); resolve(false); } };
-                const timer = setTimeout(onFail, 1200);
-
-                const cleanup = () => {
-                    clearTimeout(timer);
-                    videoEl.removeEventListener('playing', onOK);
-                    videoEl.removeEventListener('timeupdate', onOK);
-                    videoEl.removeEventListener('progress', onOK);
-                };
-
-                videoEl.addEventListener('playing', onOK, { once: true });
-                videoEl.addEventListener('timeupdate', onOK, { once: true });
-                videoEl.addEventListener('progress', onOK, { once: true });
-
-                if (playPromise && typeof playPromise.catch === 'function') {
-                    playPromise.catch(() => { });
-                }
-            });
-
-            if (!ok && !retried) {
-                retried = true;
-                hardResetElement();
-                playedThisCycle = false;
-                await playOnceWithWatchdog();
+            try {
+                await videoEl.play();
+                return true;
+            } catch (err) {
+                return false;
             }
         }
 
@@ -212,16 +180,47 @@
 
         videoEl.addEventListener('ended', onEnded);
 
-        window.addEventListener('DOMContentLoaded', () => {
-            retried = false;
-            playedThisCycle = false;
-            playOnceWithWatchdog();
-        });
+        // ユーザーインタラクション処理
+        async function handleInteraction() {
+            if (hasInteracted) return;
+            hasInteracted = true;
 
-        window.addEventListener('pageshow', () => {
-            retried = false;
-            playedThisCycle = false;
-            playOnceWithWatchdog();
+            // タップオーバーレイを非表示
+            tapOverlay.classList.remove('show');
+
+            // 動画再生
+            await playVideo();
+
+            // イベントリスナー削除
+            tapOverlay.removeEventListener('touchstart', handleInteraction);
+            tapOverlay.removeEventListener('click', handleInteraction);
+        }
+
+        tapOverlay.addEventListener('touchstart', handleInteraction, { passive: true });
+        tapOverlay.addEventListener('click', handleInteraction);
+
+        // 初期化
+        async function init() {
+            // まず自動再生を試す
+            const success = await playVideo();
+
+            if (!success) {
+                // 自動再生失敗 → タップオーバーレイ表示
+                tapOverlay.classList.add('show');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+
+        // PWA復帰時（2回目以降は自動再生される）
+        window.addEventListener('pageshow', (e) => {
+            if (hasInteracted) {
+                // 既にインタラクション済みなら自動再生
+                playVideo();
+            } else {
+                // 未インタラクションなら初期化
+                init();
+            }
         });
 
         window.addEventListener('pagehide', revokeBlob);
