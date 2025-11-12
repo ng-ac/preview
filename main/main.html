@@ -33,27 +33,25 @@
             height: 100%;
             width: 100%;
             overflow: hidden;
-            font-family: 'Poppins', 'Noto Sans JP', sans-serif;
             background: #000;
+            font-family: 'Poppins', 'Noto Sans JP', sans-serif;
         }
 
-        /* 背景動画 */
         .bg-video {
             position: fixed;
             inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
+            background: #000;
             z-index: 0;
             pointer-events: none;
-            background: #000;
         }
 
         .bg-video::-webkit-media-controls {
             display: none !important;
         }
 
-        /* 透明リンク（レイアウトは main.css 側で） */
         .overlay {
             position: relative;
             z-index: 5;
@@ -64,11 +62,11 @@
 </head>
 
 <body>
-    <!-- src は JS で Blob URL を設定する -->
-    <video class="bg-video" id="bgVideo" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture
-        disableRemotePlayback></video>
+    <!-- src は毎回JSで割り当て（Blob URL） -->
+    <video id="bgVideo" class="bg-video" autoplay muted playsinline webkit-playsinline preload="auto"
+        disablepictureinpicture disableRemotePlayback x-webkit-airplay="deny"></video>
 
-    <!-- 透明リンク -->
+    <!-- 透明リンク（位置は main.css で調整） -->
     <div class="overlay">
         <a href="/preview/yomogi/yomogi.html" class="btn-yomogi" aria-label="セルフよもぎ蒸し"></a>
         <a href="/preview/gym/gym.html" class="btn-gym" aria-label="プライベートジム"></a>
@@ -76,118 +74,178 @@
     </div>
 
     <script>
-        // ====== 要件：毎回1回だけ自動再生／終了後は最後のフレームで停止／戻った時も1回再生 ======
-        const VIDEO_PATH = '/preview/main/main.mp4'; // 元の動画パス（SWがあればそこから供給されてもOK）
-        const video = document.getElementById('bgVideo');
+        // ===== 要件：起動/戻りで毎回「確実に1回」再生、終了時は最後のフレームで停止 =====
+        const VIDEO_PATH = '/preview/main/main.mp4'; // 元動画（SWがあればキャッシュヒットします）
 
-        let currentBlobUrl = null;
-        let playingThisSession = false; // この表示サイクルで既に1回再生したか
+        let videoEl = document.getElementById('bgVideo');
+        let blobUrl = null;
+        let playedThisCycle = false;  // 表示サイクルごとに1回だけ再生
+        let retried = false;          // 失敗時のハードリセットは1回だけ
 
-        function setVideoFlags() {
-            video.muted = true;
-            video.playsInline = true;
-            video.setAttribute('muted', '');
-            video.setAttribute('playsinline', '');
-            video.setAttribute('webkit-playsinline', '');
-            video.autoplay = true;
-            video.defaultMuted = true;
-            video.volume = 0;
-            video.removeAttribute('poster');
+        function setVideoFlags(v) {
+            v.muted = true;
+            v.playsInline = true;
+            v.setAttribute('muted', '');
+            v.setAttribute('playsinline', '');
+            v.setAttribute('webkit-playsinline', '');
+            v.autoplay = true;
+            v.defaultMuted = true;
+            v.volume = 0;
+            v.removeAttribute('poster');
         }
 
-        function revokeBlobUrl() {
-            if (currentBlobUrl) {
-                try { URL.revokeObjectURL(currentBlobUrl); } catch (_) { }
-                currentBlobUrl = null;
+        function revokeBlob() {
+            if (blobUrl) {
+                try { URL.revokeObjectURL(blobUrl); } catch { }
+                blobUrl = null;
             }
         }
 
-        // CacheStorage → Blob → objectURL → video.src
-        async function getVideoBlobResponse() {
-            // 1) まず CacheStorage を探す（オフライン/高速起動を優先）
-            if ('caches' in window) {
-                try {
+        // CacheStorage 優先 → 無ければ fetch（成功時は軽く保存）
+        async function fetchVideoResponse() {
+            try {
+                if ('caches' in window) {
                     const cached = await caches.match(VIDEO_PATH, { ignoreSearch: true });
                     if (cached) return cached;
-                } catch (_) { }
-            }
-            // 2) 無ければ通常 fetch（SW がいればそこから返る）
+                }
+            } catch { }
             const resp = await fetch(VIDEO_PATH, { method: 'GET' });
-            if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
-            // 3) 将来のために軽く保存（失敗しても無視）
-            if ('caches' in window) {
-                try {
-                    const cache = await caches.open('video-cache-simple');
-                    await cache.put(VIDEO_PATH, resp.clone());
-                } catch (_) { }
-            }
+            if (!resp.ok) throw new Error('video fetch failed: ' + resp.status);
+            try {
+                if ('caches' in window) {
+                    const c = await caches.open('video-cache-simple');
+                    await c.put(VIDEO_PATH, resp.clone());
+                }
+            } catch { }
             return resp;
         }
 
-        async function prepareAndPlayOnce() {
-            if (playingThisSession) return; // このサイクルでは1回だけ
-            playingThisSession = true;
+        // video要素を新しく作り直す（AVパイプライン完全再初期化）
+        function hardResetElement() {
+            const parent = videoEl.parentNode;
+            const next = document.createElement('video');
+            next.id = 'bgVideo';
+            next.className = 'bg-video';
+            next.setAttribute('autoplay', '');
+            next.setAttribute('muted', '');
+            next.setAttribute('playsinline', '');
+            next.setAttribute('webkit-playsinline', '');
+            next.setAttribute('preload', 'auto');
+            next.setAttribute('disablepictureinpicture', '');
+            next.setAttribute('disableRemotePlayback', '');
+            next.setAttribute('x-webkit-airplay', 'deny');
 
-            setVideoFlags();
-            revokeBlobUrl();
+            // イベントを再バインド（ended）
+            next.addEventListener('ended', onEnded);
 
-            // Blob URL を毎回生成（＝毎回ユニークURL→デコーダ確実初期化）
-            const resp = await getVideoBlobResponse();
+            parent.replaceChild(next, videoEl);
+            videoEl = next;
+            setVideoFlags(videoEl);
+        }
+
+        async function prepareBlobSource() {
+            revokeBlob();
+            const resp = await fetchVideoResponse();
             const blob = await resp.blob();
-            currentBlobUrl = URL.createObjectURL(blob);
+            blobUrl = URL.createObjectURL(blob);
 
-            // いったん src を完全にクリアしてから差し替え（iOSの復元バグ回避）
-            try { video.pause(); } catch (_) { }
-            video.removeAttribute('src');
-            video.src = currentBlobUrl;
-            video.load();
+            // iOS対策：完全にsrcを外してから新URL適用
+            try { videoEl.pause(); } catch { }
+            videoEl.removeAttribute('src');
+            videoEl.src = blobUrl;
+            videoEl.load();
 
-            // 先頭から1回だけ再生
+            // 準備完了待ち（2秒でタイムアウト）
             await Promise.race([
-                new Promise(res => video.addEventListener('loadeddata', res, { once: true })),
+                new Promise(res => videoEl.addEventListener('loadeddata', res, { once: true })),
                 new Promise(res => setTimeout(res, 2000))
             ]);
-            try { video.currentTime = 0; } catch (_) { }
-            await video.play().catch(() => {/* 極稀に弾かれても今回はユーザー操作なしで継続 */ });
         }
 
-        // 終了時は「最後のフレームで停止表示」
-        video.addEventListener('ended', async () => {
+        async function playOnceWithWatchdog() {
+            if (playedThisCycle) return;
+            playedThisCycle = true;
+
+            setVideoFlags(videoEl);
+            await prepareBlobSource();
+
+            // 先頭から再生
+            try { videoEl.currentTime = 0; } catch { }
+            let playPromise;
+            try { playPromise = videoEl.play(); } catch { }
+
+            // ウォッチドッグ：短時間で「動き出したか」を検査。ダメなら1回だけハードリセットしてやり直し
+            const ok = await new Promise(resolve => {
+                let fired = false;
+
+                // 動き出しのいずれか（progress / timeupdate / playing）でOK
+                const onOK = () => { if (!fired) { fired = true; cleanup(); resolve(true); } };
+                const onFail = () => { if (!fired) { fired = true; cleanup(); resolve(false); } };
+                const timer = setTimeout(onFail, 1200);
+
+                const cleanup = () => {
+                    clearTimeout(timer);
+                    videoEl.removeEventListener('playing', onOK);
+                    videoEl.removeEventListener('timeupdate', onOK);
+                    videoEl.removeEventListener('progress', onOK);
+                };
+
+                videoEl.addEventListener('playing', onOK, { once: true });
+                videoEl.addEventListener('timeupdate', onOK, { once: true });
+                videoEl.addEventListener('progress', onOK, { once: true });
+
+                // 再生Promiseが即座にrejectしてもwatchdogで拾う
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => { });
+                }
+            });
+
+            if (!ok && !retried) {
+                // 1回だけ：要素ごと作り直して再挑戦（より強い再初期化）
+                retried = true;
+                hardResetElement();
+                playedThisCycle = false; // もう一度「1回だけ」許可
+                await playOnceWithWatchdog();
+            }
+        }
+
+        // 終了時：最後のフレームで停止表示
+        async function onEnded() {
             try {
-                video.pause();
-                const d = Number.isFinite(video.duration) ? video.duration : 0;
-                const t = Math.max(0, d - 0.06); // 60ms手前にシークして最後の絵を出す
-                video.currentTime = t;
-                // 1フレームだけ描画させる
+                videoEl.pause();
+                const d = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
+                const t = Math.max(0, d - 0.06);
+                videoEl.currentTime = t;
+                // 1フレームだけ描画させて静止画を確定
                 try {
-                    const p = video.play();
+                    const p = videoEl.play();
                     if (p && typeof p.then === 'function') await p.catch(() => { });
-                } catch (_) { }
-                video.pause();
-            } catch (_) { }
-        });
-
-        // ---- 起動時：1回だけ再生 ----
-        window.addEventListener('load', () => {
-            playingThisSession = false;
-            prepareAndPlayOnce();
-        });
-
-        // ---- 戻ってきた時（history back / PWA再表示含む）：また1回だけ再生 ----
-        window.addEventListener('pageshow', () => {
-            // 新しい表示サイクルごとにフラグをリセットして1回だけ再生
-            playingThisSession = false;
-            prepareAndPlayOnce();
-        });
-
-        // ページ離脱で Blob URL を解放（メモリリーク防止）
-        window.addEventListener('pagehide', () => { revokeBlobUrl(); });
-        window.addEventListener('beforeunload', () => { revokeBlobUrl(); });
-
-        // SW 登録（任意・既存のままでOK）
-        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-            navigator.serviceWorker.register('/preview/service-worker.js', { scope: '/preview/' }).catch(() => { });
+                } catch { }
+                videoEl.pause();
+            } catch { }
         }
+
+        videoEl.addEventListener('ended', onEnded);
+
+        // --- 起動：このサイクルで1回だけ再生 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            retried = false;
+            playedThisCycle = false;
+            playOnceWithWatchdog();
+        });
+
+        // --- 戻ってきた時（history back / PWA再表示含む）：また1回だけ再生 ---
+        window.addEventListener('pageshow', () => {
+            retried = false;
+            playedThisCycle = false;
+            playOnceWithWatchdog();
+        });
+
+        // メモリ解放
+        window.addEventListener('pagehide', revokeBlob);
+        window.addEventListener('beforeunload', revokeBlob);
+
+        // （任意）既存のSW登録があればそのままでOK。ここでは触りません。
     </script>
 </body>
 
