@@ -76,8 +76,9 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御（2回目以降再生特化版） ===
+        // === 背景動画の再生制御（キャッシュ対応強化版） ===
         const v = document.getElementById('bgVideo');
+        let retryCount = 0;
 
         function setProps() {
             v.muted = true;
@@ -90,38 +91,49 @@
             v.volume = 0;
         }
 
-        async function tryPlay() {
+        async function forcePlay() {
             setProps();
+
+            // 動画ソースを強制再読み込み
+            const src = v.querySelector('source').src.split('?')[0];
+            v.querySelector('source').src = src + '?reload=' + Date.now();
             v.load();
+
+            // loadeddataを待つ
+            await new Promise((resolve) => {
+                v.addEventListener('loadeddata', resolve, { once: true });
+                setTimeout(resolve, 2000);
+            });
 
             try {
                 await v.play();
+                retryCount = 0;
+                console.log('✓ Playing');
             } catch (err) {
-                setTimeout(() => v.play().catch(() => { }), 100);
+                console.log('Play failed:', err);
+                if (retryCount < 3) {
+                    retryCount++;
+                    setTimeout(forcePlay, 300 * retryCount);
+                }
             }
         }
 
-        // 初回読み込み
-        document.addEventListener('DOMContentLoaded', tryPlay);
-        window.addEventListener('load', tryPlay);
+        // 初回
+        window.addEventListener('load', forcePlay);
 
-        // ★ 2回目以降の起動検出（最重要）
+        // アプリ再起動時（最重要）
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                // アプリが前面に戻った = 再起動
-                v.currentTime = 0;
-                tryPlay();
+                retryCount = 0;
+                setTimeout(forcePlay, 100);
             }
         });
 
-        // pageshow（キャッシュからの復帰）
-        window.addEventListener('pageshow', () => {
-            v.currentTime = 0;
-            tryPlay();
-        });
+        window.addEventListener('pageshow', forcePlay);
+        window.addEventListener('focus', forcePlay);
 
-        // 念のため
-        window.addEventListener('focus', tryPlay);
+        // タッチで強制再生
+        document.addEventListener('touchstart', forcePlay, { once: true, passive: true });
 
         // 再生終了時
         v.addEventListener('ended', () => {
@@ -133,6 +145,7 @@
         if ('serviceWorker' in navigator &&
             (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/preview/service-worker.js', { scope: './' })
+                .then(() => console.log('SW registered'))
                 .catch(err => console.error('SW registration failed:', err));
         }
     </script>
