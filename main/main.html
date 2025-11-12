@@ -110,191 +110,182 @@
 
     <script>
         const VIDEO_PATH = '/preview/main/main.mp4';
-
-        let videoEl = document.getElementById('bgVideo');
         let debugEl = document.getElementById('debugInfo');
-        let hasPlayStarted = false;
+        let videoEl = document.getElementById('bgVideo');
+        let isPlaying = false;
 
         function updateDebug(msg) {
             const timestamp = new Date().toLocaleTimeString();
             debugEl.innerHTML = `[${timestamp}] ${msg}<br>` + debugEl.innerHTML;
         }
 
-        updateDebug('🚀 Script loaded');
+        updateDebug('🚀 Script start');
 
-        function setVideoFlags(v) {
-            v.muted = true;
-            v.playsInline = true;
-            v.setAttribute('muted', '');
-            v.setAttribute('playsinline', '');
-            v.setAttribute('webkit-playsinline', '');
-            v.defaultMuted = true;
-            v.volume = 0;
+        // video要素を完全に作り直す（iOS PWA対策）
+        function recreateVideoElement() {
+            updateDebug('🔄 Recreating video element');
+
+            const parent = videoEl.parentNode;
+            const newVideo = document.createElement('video');
+
+            // 属性コピー
+            newVideo.id = 'bgVideo';
+            newVideo.className = 'bg-video';
+            newVideo.muted = true;
+            newVideo.playsInline = true;
+            newVideo.autoplay = true;
+            newVideo.preload = 'auto';
+            newVideo.defaultMuted = true;
+            newVideo.volume = 0;
+
+            newVideo.setAttribute('muted', '');
+            newVideo.setAttribute('playsinline', '');
+            newVideo.setAttribute('webkit-playsinline', '');
+            newVideo.setAttribute('disablepictureinpicture', '');
+            newVideo.setAttribute('disableRemotePlayback', '');
+            newVideo.setAttribute('x-webkit-airplay', 'deny');
+
+            // イベントリスナー設定
+            newVideo.addEventListener('loadedmetadata', () => {
+                updateDebug(`📊 ${newVideo.videoWidth}x${newVideo.videoHeight}, ${newVideo.duration}s`);
+            });
+
+            newVideo.addEventListener('playing', () => {
+                updateDebug('▶️ PLAYING');
+            });
+
+            newVideo.addEventListener('timeupdate', function onTime() {
+                if (newVideo.currentTime > 0.1) {
+                    updateDebug(`✅ ACTUALLY MOVING! (${newVideo.currentTime.toFixed(2)}s)`);
+                    newVideo.removeEventListener('timeupdate', onTime);
+                    setTimeout(() => { debugEl.style.display = 'none'; }, 3000);
+                }
+            });
+
+            newVideo.addEventListener('ended', () => {
+                updateDebug('🏁 Ended');
+                try {
+                    newVideo.pause();
+                    const d = newVideo.duration || 0;
+                    newVideo.currentTime = Math.max(0, d - 0.06);
+                } catch { }
+            });
+
+            newVideo.addEventListener('error', () => {
+                const err = newVideo.error;
+                if (err) updateDebug(`💥 ERROR: ${err.code}`);
+            });
+
+            // 要素を置き換え
+            parent.replaceChild(newVideo, videoEl);
+            videoEl = newVideo;
+
+            updateDebug('✓ Video element recreated');
+            return newVideo;
         }
 
-        // 詳細な動画情報を表示
-        videoEl.addEventListener('loadedmetadata', () => {
-            updateDebug(`📊 Video info:
-- Size: ${videoEl.videoWidth}x${videoEl.videoHeight}
-- Duration: ${videoEl.duration}s
-- ReadyState: ${videoEl.readyState}`);
-        });
-
-        videoEl.addEventListener('playing', () => {
-            updateDebug('▶️ PLAYING event');
-        });
-
-        videoEl.addEventListener('pause', () => {
-            updateDebug('⏸️ PAUSE event');
-        });
-
-        videoEl.addEventListener('waiting', () => {
-            updateDebug('⏳ WAITING (buffering)');
-        });
-
-        videoEl.addEventListener('stalled', () => {
-            updateDebug('⚠️ STALLED');
-        });
-
-        videoEl.addEventListener('error', (e) => {
-            const err = videoEl.error;
-            if (err) {
-                updateDebug(`💥 ERROR code: ${err.code}
-1=ABORTED, 2=NETWORK, 3=DECODE, 4=NOT_SUPPORTED`);
-            }
-        });
-
-        // 実際の再生を監視
-        let lastTime = 0;
-        let checkCount = 0;
-        videoEl.addEventListener('timeupdate', () => {
-            if (videoEl.currentTime > lastTime) {
-                if (checkCount === 0) {
-                    updateDebug(`✅ ACTUALLY PLAYING! (${videoEl.currentTime.toFixed(2)}s)`);
-                }
-                checkCount++;
-                if (checkCount === 1) {
-                    // 再生確認できたら5秒後にデバッグ非表示
-                    setTimeout(() => { debugEl.style.display = 'none'; }, 5000);
-                }
-            }
-            lastTime = videoEl.currentTime;
-        });
-
         async function playVideo() {
-            if (hasPlayStarted) return;
-            hasPlayStarted = true;
+            if (isPlaying) return;
 
-            updateDebug('🎬 Starting playback...');
+            updateDebug('🎬 Play attempt');
 
-            setVideoFlags(videoEl);
+            // 要素を新しく作り直す
+            const video = recreateVideoElement();
 
-            // キャッシュバスター付きで強制再読み込み
-            const cacheBuster = '?t=' + Date.now();
-            updateDebug('📥 Loading video with cache buster');
-            videoEl.src = VIDEO_PATH + cacheBuster;
-            videoEl.load();
+            // キャッシュバスター付きでソース設定
+            const cacheBuster = '?v=' + Date.now();
+            video.src = VIDEO_PATH + cacheBuster;
 
-            // メタデータ読み込み待ち
+            updateDebug('📥 Loading...');
+            video.load();
+
+            // loadeddata待ち
             await new Promise(resolve => {
-                if (videoEl.readyState >= 1) {
+                if (video.readyState >= 2) {
                     resolve();
                 } else {
-                    videoEl.addEventListener('loadedmetadata', resolve, { once: true });
+                    video.addEventListener('loadeddata', resolve, { once: true });
                     setTimeout(resolve, 5000);
                 }
             });
 
-            updateDebug(`✓ Metadata loaded (ready: ${videoEl.readyState})`);
+            updateDebug(`✓ Loaded (ready: ${video.readyState})`);
 
-            // 十分なデータ待ち
-            if (videoEl.readyState < 3) {
-                updateDebug('⏳ Waiting for enough data...');
-                await new Promise(resolve => {
-                    videoEl.addEventListener('canplay', resolve, { once: true });
-                    setTimeout(resolve, 5000);
-                });
-            }
-
-            updateDebug(`✓ Can play (ready: ${videoEl.readyState})`);
-
+            // 再生
             try {
-                videoEl.currentTime = 0;
-                updateDebug('▶️ Calling play()...');
-                const playPromise = videoEl.play();
+                video.currentTime = 0;
+                await video.play();
+                isPlaying = true;
+                updateDebug('✅ play() called');
 
-                if (playPromise !== undefined) {
-                    await playPromise;
-                    updateDebug(`✅ play() success (paused: ${videoEl.paused})`);
-                }
-
-                // 1秒後に状態確認
+                // 1秒後確認
                 setTimeout(() => {
-                    updateDebug(`🔍 After 1s: time=${videoEl.currentTime.toFixed(2)}s, paused=${videoEl.paused}`);
+                    updateDebug(`🔍 time=${video.currentTime.toFixed(3)}s, paused=${video.paused}`);
 
-                    if (videoEl.paused || videoEl.currentTime === 0) {
-                        updateDebug('⚠️ NOT MOVING! Forcing play again...');
-                        videoEl.play();
+                    if (video.currentTime < 0.05) {
+                        updateDebug('⚠️ Still at 0! Retrying...');
+                        isPlaying = false;
+
+                        // もう一度だけ試す
+                        setTimeout(() => {
+                            video.currentTime = 0;
+                            video.play().then(() => {
+                                updateDebug('🔄 Retry play() done');
+                            }).catch(e => {
+                                updateDebug(`❌ Retry failed: ${e.name}`);
+                            });
+                        }, 100);
                     }
                 }, 1000);
 
             } catch (err) {
-                updateDebug(`❌ ${err.name}: ${err.message}`);
-                hasPlayStarted = false;
+                updateDebug(`❌ ${err.name}`);
+                isPlaying = false;
             }
         }
-
-        function onEnded() {
-            updateDebug('🏁 Video ended');
-            try {
-                videoEl.pause();
-                const d = videoEl.duration || 0;
-                videoEl.currentTime = Math.max(0, d - 0.06);
-            } catch { }
-        }
-
-        videoEl.addEventListener('ended', onEnded);
 
         // 初期化
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 updateDebug('✓ DOM ready');
-                setTimeout(playVideo, 100);
+                setTimeout(playVideo, 200);
             });
         } else {
             updateDebug('✓ DOM already ready');
-            setTimeout(playVideo, 100);
+            setTimeout(playVideo, 200);
         }
 
         window.addEventListener('load', () => {
             updateDebug('✓ Window loaded');
-            if (!hasPlayStarted) setTimeout(playVideo, 200);
+            if (!isPlaying) setTimeout(playVideo, 300);
         });
 
-        window.addEventListener('pageshow', () => {
+        // PWA復帰時
+        window.addEventListener('pageshow', (e) => {
             updateDebug('📄 pageshow');
-            hasPlayStarted = false;
-            setTimeout(playVideo, 100);
+            isPlaying = false;
+            setTimeout(playVideo, 200);
         });
 
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !hasPlayStarted) {
+            if (!document.hidden && !isPlaying) {
                 updateDebug('👁️ Visible');
-                setTimeout(playVideo, 100);
+                setTimeout(playVideo, 200);
             }
         });
 
-        let touchHandled = false;
+        // タッチ保険
+        let touched = false;
         document.addEventListener('touchstart', () => {
-            if (!touchHandled) {
-                touchHandled = true;
-                updateDebug('👆 Touch - forcing play');
-                hasPlayStarted = false;
-                playVideo();
+            if (!touched) {
+                touched = true;
+                updateDebug('👆 Touch');
+                isPlaying = false;
+                setTimeout(playVideo, 50);
             }
         }, { once: true, passive: true });
 
-        updateDebug('✓ Setup complete');
+        updateDebug('✓ Setup done');
     </script>
 </body>
 
