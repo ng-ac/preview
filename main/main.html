@@ -241,11 +241,27 @@
             playOnceWithWatchdog();
         });
 
+        // --- PWA起動時対応：即座実行 + load保険 ---
+        if (document.readyState === 'loading') {
+            // まだ読み込み中なら通常通りイベント待ち
+        } else {
+            // 既に読み込み完了している場合（PWA起動時に多い）
+            retried = false;
+            playedThisCycle = false;
+            playOnceWithWatchdog();
+        }
+
+        window.addEventListener('load', () => {
+            // load時にも未再生なら実行（二重実行防止はplayedThisCycleで対応済み）
+            if (!playedThisCycle) {
+                retried = false;
+                playOnceWithWatchdog();
+            }
+        });
+
         // メモリ解放
         window.addEventListener('pagehide', revokeBlob);
         window.addEventListener('beforeunload', revokeBlob);
-
-        // （任意）既存のSW登録があればそのままでOK。ここでは触りません。
     </script>
 </body>
 
