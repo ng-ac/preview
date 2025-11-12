@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>umlimited</title>
 
-    <!-- PWA関連 -->
+    <!-- PWA -->
     <link rel="manifest" href="/preview/main/manifest.json">
     <link rel="icon" href="/preview/main/unlimited.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="/preview/main/unlimited.ico">
@@ -46,7 +46,6 @@
             object-fit: cover;
             z-index: 0;
             pointer-events: none;
-            /* クリックは上のoverlayへ */
             background: #000;
         }
 
@@ -54,40 +53,18 @@
             display: none !important;
         }
 
-        /* 透明リンク（位置は main.css で指定） */
+        /* 透明リンク（レイアウトは main.css 側で） */
         .overlay {
             position: relative;
             z-index: 5;
             width: 100%;
             height: 100%;
         }
-
-        /* 再生フォールバック */
-        .tap-to-play {
-            position: fixed;
-            inset: 0;
-            display: none;
-            z-index: 10;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.35);
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .tap-to-play button {
-            font: 600 16px/1 'Poppins', 'Noto Sans JP', sans-serif;
-            padding: 14px 20px;
-            border-radius: 9999px;
-            border: none;
-            background: #fff;
-            color: #111;
-            letter-spacing: .02em;
-        }
     </style>
 </head>
 
 <body>
-    <!-- 背景動画（srcはJSでBlob URLを設定） -->
+    <!-- src は JS で Blob URL を設定する -->
     <video class="bg-video" id="bgVideo" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture
         disableRemotePlayback></video>
 
@@ -98,124 +75,118 @@
         <a href="/preview/tanning/tanning.html" class="btn-tanning" aria-label="SELF TANNING"></a>
     </div>
 
-    <!-- 再生できない場合のフォールバック -->
-    <div class="tap-to-play" id="tapToPlay">
-        <button type="button" id="tapToPlayBtn">タップして再生</button>
-    </div>
-
     <script>
-        // =============== シンプル安定版 再生ロジック ===============
-        const VIDEO_PATH = '/preview/main/main.mp4';
-        const v = document.getElementById('bgVideo');
-        const tap = document.getElementById('tapToPlay');
-        const tapBtn = document.getElementById('tapToPlayBtn');
-        let blobUrl = null;
+        // ====== 要件：毎回1回だけ自動再生／終了後は最後のフレームで停止／戻った時も1回再生 ======
+        const VIDEO_PATH = '/preview/main/main.mp4'; // 元の動画パス（SWがあればそこから供給されてもOK）
+        const video = document.getElementById('bgVideo');
 
-        function setVideoProps() {
-            v.muted = true;
-            v.playsInline = true;
-            v.setAttribute('muted', '');
-            v.setAttribute('playsinline', '');
-            v.setAttribute('webkit-playsinline', '');
-            v.autoplay = true;
-            v.defaultMuted = true;
-            v.volume = 0;
-            v.removeAttribute('poster');
+        let currentBlobUrl = null;
+        let playingThisSession = false; // この表示サイクルで既に1回再生したか
+
+        function setVideoFlags() {
+            video.muted = true;
+            video.playsInline = true;
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.autoplay = true;
+            video.defaultMuted = true;
+            video.volume = 0;
+            video.removeAttribute('poster');
         }
 
-        function showTap() { tap.style.display = 'flex'; }
-        function hideTap() { tap.style.display = 'none'; }
-
-        function revokeBlob() {
-            if (blobUrl) {
-                try { URL.revokeObjectURL(blobUrl); } catch (_) { }
-                blobUrl = null;
+        function revokeBlobUrl() {
+            if (currentBlobUrl) {
+                try { URL.revokeObjectURL(currentBlobUrl); } catch (_) { }
+                currentBlobUrl = null;
             }
         }
 
         // CacheStorage → Blob → objectURL → video.src
-        async function loadVideoFromCacheOrNetwork() {
-            // 1) CacheStorage を優先
-            let resp = null;
-            try {
-                if ('caches' in window) {
-                    resp = await caches.match(VIDEO_PATH, { ignoreSearch: true });
-                }
-            } catch (_) { }
-
-            // 2) 無ければ fetch（成功したら Cache に保存）
-            if (!resp) {
-                resp = await fetch(VIDEO_PATH, { method: 'GET' });
-                if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
+        async function getVideoBlobResponse() {
+            // 1) まず CacheStorage を探す（オフライン/高速起動を優先）
+            if ('caches' in window) {
                 try {
-                    if ('caches' in window) {
-                        const cache = await caches.open('video-cache-simple');
-                        // 正規化キーで保存（クエリ無視）
-                        await cache.put(VIDEO_PATH, resp.clone());
-                    }
+                    const cached = await caches.match(VIDEO_PATH, { ignoreSearch: true });
+                    if (cached) return cached;
                 } catch (_) { }
             }
+            // 2) 無ければ通常 fetch（SW がいればそこから返る）
+            const resp = await fetch(VIDEO_PATH, { method: 'GET' });
+            if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
+            // 3) 将来のために軽く保存（失敗しても無視）
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open('video-cache-simple');
+                    await cache.put(VIDEO_PATH, resp.clone());
+                } catch (_) { }
+            }
+            return resp;
+        }
 
+        async function prepareAndPlayOnce() {
+            if (playingThisSession) return; // このサイクルでは1回だけ
+            playingThisSession = true;
+
+            setVideoFlags();
+            revokeBlobUrl();
+
+            // Blob URL を毎回生成（＝毎回ユニークURL→デコーダ確実初期化）
+            const resp = await getVideoBlobResponse();
             const blob = await resp.blob();
-            revokeBlob();
-            blobUrl = URL.createObjectURL(blob);
+            currentBlobUrl = URL.createObjectURL(blob);
 
-            // video に適用
-            setVideoProps();
-            v.removeAttribute('src');
-            v.src = blobUrl;
-            v.load();
+            // いったん src を完全にクリアしてから差し替え（iOSの復元バグ回避）
+            try { video.pause(); } catch (_) { }
+            video.removeAttribute('src');
+            video.src = currentBlobUrl;
+            video.load();
 
-            // ready（2秒タイムアウト）
+            // 先頭から1回だけ再生
             await Promise.race([
-                new Promise(res => v.addEventListener('loadeddata', res, { once: true })),
+                new Promise(res => video.addEventListener('loadeddata', res, { once: true })),
                 new Promise(res => setTimeout(res, 2000))
             ]);
+            try { video.currentTime = 0; } catch (_) { }
+            await video.play().catch(() => {/* 極稀に弾かれても今回はユーザー操作なしで継続 */ });
         }
 
-        async function startPlay() {
+        // 終了時は「最後のフレームで停止表示」
+        video.addEventListener('ended', async () => {
             try {
-                await loadVideoFromCacheOrNetwork();
-                try { v.currentTime = 0; } catch (_) { }
-                await v.play();
-                hideTap();
-            } catch (_) {
-                // 自動再生が弾かれたら最小限のフォールバックだけ出す
-                showTap();
-            }
-        }
-
-        // 終了時は「最後のフレームで静止」
-        v.addEventListener('ended', async () => {
-            try {
-                v.pause();
-                const d = Number.isFinite(v.duration) ? v.duration : 0;
-                const t = Math.max(0, d - 0.06);
-                v.currentTime = t;
+                video.pause();
+                const d = Number.isFinite(video.duration) ? video.duration : 0;
+                const t = Math.max(0, d - 0.06); // 60ms手前にシークして最後の絵を出す
+                video.currentTime = t;
+                // 1フレームだけ描画させる
                 try {
-                    const p = v.play();
+                    const p = video.play();
                     if (p && typeof p.then === 'function') await p.catch(() => { });
                 } catch (_) { }
-                v.pause();
+                video.pause();
             } catch (_) { }
         });
 
-        // タップで再生（1回だけ）
-        tapBtn.addEventListener('click', async () => {
-            hideTap();
-            await startPlay();
-        }, { passive: true });
+        // ---- 起動時：1回だけ再生 ----
+        window.addEventListener('load', () => {
+            playingThisSession = false;
+            prepareAndPlayOnce();
+        });
 
-        // 起動時に1回だけ実行（イベント乱発はしない）
-        window.addEventListener('load', startPlay);
+        // ---- 戻ってきた時（history back / PWA再表示含む）：また1回だけ再生 ----
+        window.addEventListener('pageshow', () => {
+            // 新しい表示サイクルごとにフラグをリセットして1回だけ再生
+            playingThisSession = false;
+            prepareAndPlayOnce();
+        });
 
-        // ページ離脱で Blob URL を解放
-        window.addEventListener('beforeunload', revokeBlob);
+        // ページ離脱で Blob URL を解放（メモリリーク防止）
+        window.addEventListener('pagehide', () => { revokeBlobUrl(); });
+        window.addEventListener('beforeunload', () => { revokeBlobUrl(); });
 
-        // Service Worker 登録（任意・既存のままでOK）
+        // SW 登録（任意・既存のままでOK）
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-            navigator.serviceWorker.register('/preview/service-worker.js', { scope: '/preview/' })
-                .catch(() => { });
+            navigator.serviceWorker.register('/preview/service-worker.js', { scope: '/preview/' }).catch(() => { });
         }
     </script>
 </body>
