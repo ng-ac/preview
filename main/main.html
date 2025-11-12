@@ -76,45 +76,87 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御 ===
+        // === 背景動画の再生制御（PWA対応強化版） ===
         const v = document.getElementById('bgVideo');
+        let playAttempted = false;
 
         function setProps() {
             v.muted = true;
             v.playsInline = true;
+            v.setAttribute('playsinline', '');
+            v.setAttribute('webkit-playsinline', '');
             v.autoplay = true;
         }
 
-        function tryPlay() {
+        async function tryPlay() {
             setProps();
-            const p = v.play();
-            if (p && typeof p.catch === 'function') p.catch(() => { });
+            if (playAttempted && v.currentTime > 0) return;
+
+            try {
+                await v.play();
+                playAttempted = true;
+                console.log('✓ Video playing');
+            } catch (err) {
+                console.log('Play blocked:', err.message);
+            }
         }
 
-        // iOS・PWAで確実に再生を試みる
-        document.addEventListener('DOMContentLoaded', tryPlay);
-        window.addEventListener('load', tryPlay);
+        // PWA起動時の検出と対応
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+
+        if (isPWA) {
+            // PWAモード：ユーザータッチを待つ
+            const startOverlay = document.createElement('div');
+            startOverlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        `;
+            startOverlay.innerHTML = `
+            <div style="color:#fff; font-size:18px; text-align:center; padding:20px;">
+                タップして開始
+            </div>
+        `;
+
+            startOverlay.addEventListener('click', async () => {
+                await tryPlay();
+                startOverlay.style.display = 'none';
+            }, { once: true });
+
+            document.body.appendChild(startOverlay);
+        } else {
+            // 通常ブラウザモード：従来通り
+            document.addEventListener('DOMContentLoaded', tryPlay);
+            window.addEventListener('load', tryPlay);
+        }
+
+        // 共通の再生トリガー
         window.addEventListener('focus', tryPlay);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
-        ['touchend', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => { tryPlay(); }, { once: true });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) tryPlay();
         });
 
-        // 1回だけ再生して最後のフレームで停止
+        ['touchstart', 'touchend', 'click'].forEach(ev => {
+            document.addEventListener(ev, tryPlay, { once: true, passive: true });
+        });
+
+        // 再生終了時の処理
         v.addEventListener('ended', () => {
             v.pause();
             v.currentTime = v.duration;
         });
-    </script>
 
-    <script>
         // === Service Worker 登録 ===
         if ('serviceWorker' in navigator &&
             (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/preview/service-worker.js', { scope: './' })
                 .catch(err => console.error('SW registration failed:', err));
-        } else {
-            console.log('SW skipped (insecure context or unsupported).');
         }
     </script>
 </body>
