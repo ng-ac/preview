@@ -15,6 +15,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="umlimited">
     <meta name="theme-color" content="#000000">
+
     <link
         href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Poppins:wght@500;700&display=swap"
         rel="stylesheet">
@@ -58,13 +59,43 @@
             align-items: stretch;
             justify-content: flex-start;
         }
+
+        /* 再生失敗時のタップ用ボタン（最小UI） */
+        .tap-to-play {
+            position: fixed;
+            inset: 0;
+            display: none;
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tap-to-play button {
+            font: 600 16px/1 'Poppins', 'Noto Sans JP', sans-serif;
+            padding: 14px 20px;
+            border-radius: 9999px;
+            border: none;
+            background: #ffffff;
+            color: #111;
+            letter-spacing: .02em;
+        }
+
+        /* 透明リンク（ボタン位置は main.css 側で調整想定） */
+        .overlay {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 
 <body>
-    <!-- 背景動画（1回だけ再生） -->
-    <video class="bg-video" id="bgVideo" autoplay muted playsinline webkit-playsinline preload="auto"
-        disablepictureinpicture>
+    <!-- 背景動画（1回だけ再生。ただし再入場時は都度再生を試行） -->
+    <video class="bg-video" id="bgVideo" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture
+        disableRemotePlayback>
         <source src="/preview/main/main.mp4" type="video/mp4">
     </video>
 
@@ -75,77 +106,110 @@
         <a href="/preview/tanning/tanning.html" class="btn-tanning" aria-label="SELF TANNING"></a>
     </div>
 
+    <!-- 再生できない場合のフォールバックUI -->
+    <div class="tap-to-play" id="tapToPlay">
+        <button type="button" id="tapToPlayBtn">タップして再生</button>
+    </div>
+
     <script>
-        // === 背景動画の再生制御（キャッシュ対応強化版） ===
+        // ===============================
+        // 背景動画の安定再生ロジック（PWA/ホーム画面対策込み）
+        // ===============================
         const v = document.getElementById('bgVideo');
+        const tap = document.getElementById('tapToPlay');
+        const tapBtn = document.getElementById('tapToPlayBtn');
+
+        let playLock = false;     // 多重 play() 防止
+        let lastPlayAt = 0;       // 短時間多発抑制
         let retryCount = 0;
 
-        function setProps() {
+        // 端末依存の属性を常時付与（iOSはロード前にmuted/playsinlineが必要）
+        function setVideoProps() {
             v.muted = true;
             v.playsInline = true;
+            v.setAttribute('muted', '');
             v.setAttribute('playsinline', '');
             v.setAttribute('webkit-playsinline', '');
-            v.setAttribute('muted', '');
-            v.autoplay = true;
+            v.autoplay = true; // 意図：自動再生
             v.defaultMuted = true;
             v.volume = 0;
         }
 
-        async function forcePlay() {
-            setProps();
+        // 失敗時に表示するタップUI
+        function showTap() { tap.style.display = 'flex'; }
+        function hideTap() { tap.style.display = 'none'; }
 
-            // 動画ソースを強制再読み込み
-            const src = v.querySelector('source').src.split('?')[0];
-            v.querySelector('source').src = src + '?reload=' + Date.now();
+        // 動画をクリーンに再ロード（クエリは付けない：SW側で正規化）
+        async function reloadVideoSource() {
+            const srcEl = v.querySelector('source');
+            const base = '/preview/main/main.mp4';
+            if (!srcEl || srcEl.src.replace(location.origin, '') !== base) {
+                if (srcEl) srcEl.src = base;
+            }
             v.load();
+            // 2秒タイムアウトで loadeddata を待つ
+            await Promise.race([
+                new Promise(res => v.addEventListener('loadeddata', res, { once: true })),
+                new Promise(res => setTimeout(res, 2000))
+            ]);
+        }
 
-            // loadeddataを待つ
-            await new Promise((resolve) => {
-                v.addEventListener('loadeddata', resolve, { once: true });
-                setTimeout(resolve, 2000);
-            });
-
+        async function tryPlayOnce() {
+            setVideoProps();
+            await reloadVideoSource();
             try {
                 await v.play();
                 retryCount = 0;
-                console.log('✓ Playing');
-            } catch (err) {
-                console.log('Play failed:', err);
-                if (retryCount < 3) {
-                    retryCount++;
-                    setTimeout(forcePlay, 300 * retryCount);
+                hideTap();
+                // iOS PWAでまれに currentTime が末尾に飛ぶ現象対策
+                if (!isFinite(v.currentTime) || v.currentTime > 0.1) {
+                    try { v.currentTime = 0; } catch (_) { }
                 }
+                console.log('✓ video playing');
+                return true;
+            } catch (err) {
+                console.log('play failed:', err && err.name || err);
+                return false;
             }
         }
 
-        // 初回
+        async function forcePlay() {
+            const now = Date.now();
+            if (playLock || (now - lastPlayAt) < 400) return; // 400ms以内の連打抑制
+            playLock = true; lastPlayAt = now;
+
+            let ok = await tryPlayOnce();
+            // 自動再生が弾かれた場合は指数バックオフで数回リトライ
+            while (!ok && retryCount < 3) {
+                retryCount++;
+                await new Promise(r => setTimeout(r, 300 * retryCount));
+                ok = await tryPlayOnce();
+            }
+            if (!ok) showTap();
+
+            playLock = false;
+        }
+
+        v.addEventListener('ended', () => {
+            try { v.pause(); v.currentTime = Math.max(0, v.duration || 0); } catch (_) { }
+        });
+
+        tapBtn.addEventListener('click', () => { hideTap(); forcePlay(); }, { passive: true });
+        document.addEventListener('touchstart', () => { hideTap(); forcePlay(); }, { once: true, passive: true });
+
         window.addEventListener('load', forcePlay);
 
-        // アプリ再起動時（最重要）
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                retryCount = 0;
-                setTimeout(forcePlay, 100);
-            }
+            if (!document.hidden) setTimeout(forcePlay, 100);
         });
+        window.addEventListener('pageshow', () => { forcePlay(); });
+        window.addEventListener('focus', () => { forcePlay(); });
 
-        window.addEventListener('pageshow', forcePlay);
-        window.addEventListener('focus', forcePlay);
-
-        // タッチで強制再生
-        document.addEventListener('touchstart', forcePlay, { once: true, passive: true });
-
-        // 再生終了時
-        v.addEventListener('ended', () => {
-            v.pause();
-            v.currentTime = v.duration;
-        });
-
-        // === Service Worker 登録 ===
-        if ('serviceWorker' in navigator &&
-            (location.protocol === 'https:' || location.hostname === 'localhost')) {
-            navigator.serviceWorker.register('/preview/service-worker.js', { scope: './' })
-                .then(() => console.log('SW registered'))
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+            navigator.serviceWorker.register('/preview/service-worker.js', { scope: '/preview/' })
+                .then(reg => {
+                    console.log('SW registered', reg.scope);
+                })
                 .catch(err => console.error('SW registration failed:', err));
         }
     </script>
