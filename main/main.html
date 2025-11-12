@@ -76,75 +76,41 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御（PWA対応強化版） ===
+        // === 背景動画の再生制御 ===
         const v = document.getElementById('bgVideo');
 
         function setProps() {
             v.muted = true;
             v.playsInline = true;
-            v.setAttribute('playsinline', '');
-            v.setAttribute('webkit-playsinline', '');
-            v.setAttribute('muted', '');
             v.autoplay = true;
-            v.defaultMuted = true;
         }
 
-        async function tryPlay() {
+        function tryPlay() {
             setProps();
-
-            // 動画を最初から再読み込み
-            v.load();
-
-            try {
-                const playPromise = v.play();
-                if (playPromise !== undefined) {
-                    await playPromise;
-                }
-            } catch (err) {
-                // 失敗時は少し待ってリトライ
-                setTimeout(async () => {
-                    try {
-                        await v.play();
-                    } catch (e) {
-                        // 最終手段：ユーザー操作を待つ
-                        document.addEventListener('touchstart', () => v.play(), { once: true, passive: true });
-                    }
-                }, 100);
-            }
+            const p = v.play();
+            if (p && typeof p.catch === 'function') p.catch(() => { });
         }
 
-        // 複数タイミングで再生試行
         document.addEventListener('DOMContentLoaded', tryPlay);
         window.addEventListener('load', tryPlay);
-        window.addEventListener('pageshow', tryPlay);
         window.addEventListener('focus', tryPlay);
-
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) tryPlay();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
+        ['touchend', 'click'].forEach(ev => {
+            document.addEventListener(ev, () => { tryPlay(); }, { once: true });
         });
 
-        // PWA起動時も即座に試行
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-            setTimeout(tryPlay, 100);
-            setTimeout(tryPlay, 500);
-        }
-
-        // 念のためタッチイベントでも試行
-        ['touchstart', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => tryPlay(), { once: true, passive: true });
-        });
-
-        // 再生終了時の処理
         v.addEventListener('ended', () => {
             v.pause();
             v.currentTime = v.duration;
         });
 
-        // === Service Worker 登録 ===
+                // === Service Worker 登録 ===
         if ('serviceWorker' in navigator &&
             (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/preview/service-worker.js', { scope: './' })
                 .catch(err => console.error('SW registration failed:', err));
+        } else {
+            console.log('SW skipped (insecure context or unsupported).');
         }
     </script>
 </body>
