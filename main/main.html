@@ -116,7 +116,7 @@
         const videoEl = document.getElementById('bgVideo');
         const startScreen = document.getElementById('startScreen');
         const startButton = document.getElementById('startButton');
-        let hasPlayedThisSession = false;
+        let videoHasPlayed = false;
 
         videoEl.muted = true;
         videoEl.volume = 0;
@@ -124,12 +124,10 @@
 
         // Startボタンクリック時
         async function handleStart() {
-            if (hasPlayedThisSession) return;
-            hasPlayedThisSession = true;
-
             try {
                 videoEl.currentTime = 0;
                 await videoEl.play();
+                videoHasPlayed = true;
 
                 // スタート画面をフェードアウト
                 startScreen.classList.add('hide');
@@ -138,7 +136,7 @@
                 }, 500);
 
             } catch (err) {
-                hasPlayedThisSession = false;
+                // エラー時は何もしない
             }
         }
 
@@ -153,18 +151,29 @@
             }
         });
 
-        // PWA復帰時：スタート画面を再表示
-        window.addEventListener('pageshow', () => {
-            if (!hasPlayedThisSession) {
+        // 他のページから戻ってきた時
+        window.addEventListener('pageshow', (e) => {
+            if (videoHasPlayed) {
+                // 動画を再生済みなら最終フレームを表示
+                startScreen.style.display = 'none';
+                videoEl.pause();
+                if (videoEl.duration) {
+                    videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
+                }
+            } else {
+                // まだ未再生ならスタート画面表示
                 startScreen.style.display = 'flex';
                 startScreen.classList.remove('hide');
             }
         });
 
         window.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !hasPlayedThisSession) {
-                startScreen.style.display = 'flex';
-                startScreen.classList.remove('hide');
+            if (!document.hidden && videoHasPlayed) {
+                // フォアグラウンド復帰時も最終フレーム
+                videoEl.pause();
+                if (videoEl.duration) {
+                    videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
+                }
             }
         });
     </script>
