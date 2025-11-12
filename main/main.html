@@ -116,66 +116,109 @@
         const videoEl = document.getElementById('bgVideo');
         const startScreen = document.getElementById('startScreen');
         const startButton = document.getElementById('startButton');
-        let videoHasPlayed = false;
+
+        // セッションストレージで状態管理（タブを閉じるまで有効）
+        const SESSION_KEY = 'main_video_played';
 
         videoEl.muted = true;
         videoEl.volume = 0;
         videoEl.defaultMuted = true;
+
+        // 現在のセッションで既に再生済みか確認
+        function hasPlayedInSession() {
+            return sessionStorage.getItem(SESSION_KEY) === 'true';
+        }
+
+        // 再生済みフラグを保存
+        function markAsPlayed() {
+            sessionStorage.setItem(SESSION_KEY, 'true');
+        }
+
+        // 最終フレームに移動
+        function showLastFrame() {
+            if (videoEl.readyState >= 1 && videoEl.duration) {
+                videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
+            } else {
+                // メタデータ未読み込みなら読み込み後に設定
+                videoEl.addEventListener('loadedmetadata', () => {
+                    if (videoEl.duration) {
+                        videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
+                    }
+                }, { once: true });
+            }
+            videoEl.pause();
+        }
+
+        // スタート画面を非表示
+        function hideStartScreen() {
+            startScreen.classList.add('hide');
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+            }, 500);
+        }
+
+        // スタート画面を表示
+        function showStartScreen() {
+            startScreen.style.display = 'flex';
+            startScreen.classList.remove('hide');
+        }
 
         // Startボタンクリック時
         async function handleStart() {
             try {
                 videoEl.currentTime = 0;
                 await videoEl.play();
-                videoHasPlayed = true;
 
-                // スタート画面をフェードアウト
-                startScreen.classList.add('hide');
-                setTimeout(() => {
-                    startScreen.style.display = 'none';
-                }, 500);
+                // 再生成功
+                markAsPlayed();
+                hideStartScreen();
 
             } catch (err) {
-                // エラー時は何もしない
+                // 再生失敗（通常起こらない）
+                console.error('Play failed:', err);
             }
         }
 
+        // イベントリスナー登録
         startButton.addEventListener('click', handleStart);
         startButton.addEventListener('touchstart', handleStart, { passive: true });
 
-        // 終了時：最後のフレームで停止
+        // 動画終了時：最後のフレームで停止
         videoEl.addEventListener('ended', () => {
-            videoEl.pause();
-            if (videoEl.duration) {
-                videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
-            }
+            showLastFrame();
         });
 
-        // 他のページから戻ってきた時
-        window.addEventListener('pageshow', (e) => {
-            if (videoHasPlayed) {
-                // 動画を再生済みなら最終フレームを表示
+        // 初期化処理
+        function init() {
+            if (hasPlayedInSession()) {
+                // 既に再生済み → スタート画面非表示 + 最終フレーム表示
                 startScreen.style.display = 'none';
-                videoEl.pause();
-                if (videoEl.duration) {
-                    videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
-                }
+                showLastFrame();
             } else {
-                // まだ未再生ならスタート画面表示
-                startScreen.style.display = 'flex';
-                startScreen.classList.remove('hide');
+                // 未再生 → スタート画面表示
+                showStartScreen();
+            }
+        }
+
+        // ページ表示時（戻る・復帰含む）
+        window.addEventListener('pageshow', (event) => {
+            init();
+        });
+
+        // フォアグラウンド復帰時
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && hasPlayedInSession()) {
+                // 再生済みなら最終フレーム表示
+                showLastFrame();
             }
         });
 
-        window.addEventListener('visibilitychange', () => {
-            if (!document.hidden && videoHasPlayed) {
-                // フォアグラウンド復帰時も最終フレーム
-                videoEl.pause();
-                if (videoEl.duration) {
-                    videoEl.currentTime = Math.max(0, videoEl.duration - 0.06);
-                }
-            }
-        });
+        // 初回読み込み時
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 
