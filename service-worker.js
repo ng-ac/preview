@@ -1,6 +1,6 @@
 // キャッシュ名（バージョンを上げると一括更新）
-const CACHE_NAME = 'yomogi-v1';
-const VIDEO_CACHE = 'video-cache-v1';
+const CACHE_NAME = 'yomogi-v5';
+const VIDEO_CACHE = 'video-cache-v5';
 
 // 事前キャッシュ（動画は重いのでプリキャッシュしない）
 const urlsToCache = [
@@ -99,4 +99,5 @@ self.addEventListener('fetch', event => {
         }
     })());
 });
+
 
