@@ -76,9 +76,8 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御（キャッシュ対応版） ===
+        // === 背景動画の再生制御（PWA再起動対応版） ===
         const v = document.getElementById('bgVideo');
-        let playStarted = false;
 
         function setProps() {
             v.muted = true;
@@ -91,43 +90,67 @@
             v.volume = 0;
         }
 
+        async function forceReload() {
+            // 動画を完全にリセット
+            const source = v.querySelector('source');
+            const originalSrc = source.src;
+
+            // キャッシュバスター付きで再読み込み
+            v.pause();
+            v.removeAttribute('src');
+            source.removeAttribute('src');
+            v.load();
+
+            // 少し待ってから再設定
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            source.src = originalSrc + '?t=' + Date.now();
+            v.load();
+
+            return new Promise(resolve => {
+                v.addEventListener('loadeddata', resolve, { once: true });
+                setTimeout(resolve, 1000); // タイムアウト
+            });
+        }
+
         async function tryPlay() {
-            if (playStarted) return;
             setProps();
 
             try {
-                // 動画を強制リロード（キャッシュでも新規読み込み）
-                const currentSrc = v.querySelector('source').src;
-                v.querySelector('source').src = '';
-                v.load();
-                v.querySelector('source').src = currentSrc;
-                v.load();
-
+                await forceReload();
                 await v.play();
-                playStarted = true;
             } catch (err) {
-                // 失敗時は少し待ってリトライ
+                console.log('First play failed, retrying...', err);
                 setTimeout(async () => {
                     try {
                         v.load();
                         await v.play();
-                        playStarted = true;
                     } catch (e) {
-                        console.log('Play failed:', e);
+                        console.log('Retry failed:', e);
                     }
-                }, 200);
+                }, 300);
             }
         }
 
-        // 各種イベントで再生試行
-        document.addEventListener('DOMContentLoaded', tryPlay);
+        // 初回読み込み
         window.addEventListener('load', tryPlay);
-        window.addEventListener('pageshow', tryPlay);
 
-        // PWA再起動時の対応
+        // PWA再起動時の検出と対応
+        let isFirstLoad = true;
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !playStarted) {
-                playStarted = false;
+            if (!document.hidden) {
+                if (!isFirstLoad) {
+                    // 2回目以降の起動
+                    setTimeout(tryPlay, 100);
+                }
+                isFirstLoad = false;
+            }
+        });
+
+        // pageshow（キャッシュ復帰時）
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted || performance.navigation.type === 2) {
+                // bfcacheから復帰した場合
                 setTimeout(tryPlay, 100);
             }
         });
@@ -135,7 +158,7 @@
         // 念のためユーザー操作でも
         ['touchstart', 'click'].forEach(ev => {
             document.addEventListener(ev, () => {
-                if (!playStarted) tryPlay();
+                if (v.paused) tryPlay();
             }, { once: true, passive: true });
         });
 
