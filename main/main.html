@@ -76,7 +76,7 @@
     </div>
 
     <script>
-        // === 背景動画の再生制御（PWA再起動対応版） ===
+        // === 背景動画の再生制御（2回目以降再生特化版） ===
         const v = document.getElementById('bgVideo');
 
         function setProps() {
@@ -90,77 +90,38 @@
             v.volume = 0;
         }
 
-        async function forceReload() {
-            // 動画を完全にリセット
-            const source = v.querySelector('source');
-            const originalSrc = source.src;
-
-            // キャッシュバスター付きで再読み込み
-            v.pause();
-            v.removeAttribute('src');
-            source.removeAttribute('src');
-            v.load();
-
-            // 少し待ってから再設定
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            source.src = originalSrc + '?t=' + Date.now();
-            v.load();
-
-            return new Promise(resolve => {
-                v.addEventListener('loadeddata', resolve, { once: true });
-                setTimeout(resolve, 1000); // タイムアウト
-            });
-        }
-
         async function tryPlay() {
             setProps();
+            v.load();
 
             try {
-                await forceReload();
                 await v.play();
             } catch (err) {
-                console.log('First play failed, retrying...', err);
-                setTimeout(async () => {
-                    try {
-                        v.load();
-                        await v.play();
-                    } catch (e) {
-                        console.log('Retry failed:', e);
-                    }
-                }, 300);
+                setTimeout(() => v.play().catch(() => { }), 100);
             }
         }
 
         // 初回読み込み
+        document.addEventListener('DOMContentLoaded', tryPlay);
         window.addEventListener('load', tryPlay);
 
-        // PWA再起動時の検出と対応
-        let isFirstLoad = true;
+        // ★ 2回目以降の起動検出（最重要）
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                if (!isFirstLoad) {
-                    // 2回目以降の起動
-                    setTimeout(tryPlay, 100);
-                }
-                isFirstLoad = false;
+                // アプリが前面に戻った = 再起動
+                v.currentTime = 0;
+                tryPlay();
             }
         });
 
-        // pageshow（キャッシュ復帰時）
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted || performance.navigation.type === 2) {
-                // bfcacheから復帰した場合
-                setTimeout(tryPlay, 100);
-            }
+        // pageshow（キャッシュからの復帰）
+        window.addEventListener('pageshow', () => {
+            v.currentTime = 0;
+            tryPlay();
         });
 
-        // 念のためユーザー操作でも
-        ['touchstart', 'click'].forEach(ev => {
-            document.addEventListener(ev, () => {
-                if (v.paused) tryPlay();
-            }, { once: true, passive: true });
-        });
+        // 念のため
+        window.addEventListener('focus', tryPlay);
 
         // 再生終了時
         v.addEventListener('ended', () => {
