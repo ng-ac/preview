@@ -153,28 +153,38 @@
             });
         }
 
-        // ロード時
-        window.addEventListener('load', () => {
-            // ブラウザにスクロール位置を復元させない
-            if ('scrollRestoration' in history) {
-                history.scrollRestoration = 'manual';
-            }
+        // ローディング画面の表示～終了までを1セットで実行する関数
+        function runStartup() {
+            // 戻ってきたときに変なスクロール位置から始まらないよう常に一番上へ
+            window.scrollTo(0, 0);
 
+            // まず現在の高さで全体を合わせる
             adjustHeight();
 
+            // ローディングが終わるタイミング（2秒後）で
+            // 改めて高さを最新の値で取り直してから表示を切り替え
             setTimeout(() => {
+                adjustHeight(); // ここでもう一度正しい高さにそろえる
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
             }, 2000);
+        }
+
+        // 初回ロード時
+        window.addEventListener('load', () => {
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+            runStartup();
         });
 
-        // ページに戻ってきたとき（bfcache含む）も補正
+        // 他の画面から戻ってきたとき（bfcacheからの復元も含む）
         window.addEventListener('pageshow', (event) => {
-            window.scrollTo(0, 0);
-            adjustHeight();
+            // main.html に戻るたびに、初回と同じスタートシーケンスを実行
+            runStartup();
         });
 
-        // 回転やサイズ変更のたびに高さを取り直す
+        // 回転やサイズ変更のたびに高さを取り直す（回転対策はそのまま維持）
         window.addEventListener('orientationchange', adjustHeight);
         window.addEventListener('resize', adjustHeight);
     </script>
