@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0 maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>umlimited</title>
 
     <!-- PWA -->
@@ -142,17 +143,29 @@
     <script>
         const bgImage = document.getElementById('bgImage');
         const startScreen = document.getElementById('startScreen');
+        const overlay = document.querySelector('.overlay');
 
-        // 2秒後に画像表示
-        function showBackground() {
+        // 画面の実高さに合わせて各要素のheightを調整
+        function adjustHeight() {
+            const h = window.innerHeight;
+            // html, body, 背景画像, スタート画面, オーバーレイの高さを揃える
+            [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
+                if (el) el.style.height = h + 'px';
+            });
+        }
+
+        // ロード時に高さを合わせて、2秒後に背景表示＆スタート画面非表示
+        window.addEventListener('load', () => {
+            adjustHeight();
             setTimeout(() => {
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
             }, 2000);
-        }
+        });
 
-        // 初期化
-        showBackground();
+        // 回転やサイズ変更のたびに高さを取り直す
+        window.addEventListener('orientationchange', adjustHeight);
+        window.addEventListener('resize', adjustHeight);
     </script>
 </body>
 
