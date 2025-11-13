@@ -148,19 +148,30 @@
         // 画面の実高さに合わせて各要素のheightを調整
         function adjustHeight() {
             const h = window.innerHeight;
-            // html, body, 背景画像, スタート画面, オーバーレイの高さを揃える
             [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
                 if (el) el.style.height = h + 'px';
             });
         }
 
-        // ロード時に高さを合わせて、2秒後に背景表示＆スタート画面非表示
+        // ロード時
         window.addEventListener('load', () => {
+            // ブラウザにスクロール位置を復元させない
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+
             adjustHeight();
+
             setTimeout(() => {
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
             }, 2000);
+        });
+
+        // ページに戻ってきたとき（bfcache含む）も補正
+        window.addEventListener('pageshow', (event) => {
+            window.scrollTo(0, 0);
+            adjustHeight();
         });
 
         // 回転やサイズ変更のたびに高さを取り直す
