@@ -155,36 +155,39 @@
 
         // ローディング画面の表示～終了までを1セットで実行する関数
         function runStartup() {
-            // 戻ってきたときに変なスクロール位置から始まらないよう常に一番上へ
             window.scrollTo(0, 0);
-
-            // まず現在の高さで全体を合わせる
             adjustHeight();
 
-            // ローディングが終わるタイミング（2秒後）で
-            // 改めて高さを最新の値で取り直してから表示を切り替え
             setTimeout(() => {
-                adjustHeight(); // ここでもう一度正しい高さにそろえる
+                adjustHeight();
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
             }, 2000);
         }
 
-        // 初回ロード時
+        // 初回ロード時 - 複数回adjustHeightを実行して確実に高さを取得
         window.addEventListener('load', () => {
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
             }
+
+            // 即座に1回目
+            adjustHeight();
+
+            // 少し待ってから2回目（ブラウザのレイアウト計算完了を待つ）
+            setTimeout(adjustHeight, 50);
+
+            // さらに念押しで3回目
+            setTimeout(adjustHeight, 150);
+
+            // 本来のスタートアップ処理
             runStartup();
         });
 
-        // 他の画面から戻ってきたとき（bfcacheからの復元も含む）
         window.addEventListener('pageshow', (event) => {
-            // main.html に戻るたびに、初回と同じスタートシーケンスを実行
             runStartup();
         });
 
-        // 回転やサイズ変更のたびに高さを取り直す（回転対策はそのまま維持）
         window.addEventListener('orientationchange', adjustHeight);
         window.addEventListener('resize', adjustHeight);
     </script>
