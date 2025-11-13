@@ -4,7 +4,7 @@
     "description": "メインメニュー（よもぎ蒸し等への入口）",
     "start_url": "/preview/main/main.html",
     "scope": "/preview/",
-    "display": "standalone",
+    "display": "fullscreen",
     "background_color": "#ffffff",
     "theme_color": "#000000",
 
@@ -17,3 +17,4 @@
     ]
 
 }
+
