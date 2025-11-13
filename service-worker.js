@@ -15,7 +15,9 @@ const urlsToCache = [
     '/preview/yomogiphoto/よもぎ6.jpg',
     '/preview/yomogiphoto/よもぎ7.jpg',
     '/preview/yomogiphoto/よもぎ8.jpg',
-    '/preview/yomogiphoto/よもぎ9.jpg'
+    '/preview/yomogiphoto/よもぎ9.jpg',
+    '/preview/gym/gym.html',
+    '/preview/tanning/tanning.html'
 ];
 
 self.addEventListener('install', event => {
@@ -66,3 +68,4 @@ self.addEventListener('fetch', event => {
         }
     })());
 });
+
