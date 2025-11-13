@@ -180,16 +180,37 @@
             // さらに念押しで3回目
             setTimeout(adjustHeight, 150);
 
+            // iPad横画面起動対応 - さらに遅延させて確実に取得
+            setTimeout(adjustHeight, 300);
+            setTimeout(adjustHeight, 500);
+
             // 本来のスタートアップ処理
             runStartup();
         });
 
         window.addEventListener('pageshow', (event) => {
+            // pageshow時も複数回実行
+            adjustHeight();
+            setTimeout(adjustHeight, 100);
+            setTimeout(adjustHeight, 300);
             runStartup();
         });
 
-        window.addEventListener('orientationchange', adjustHeight);
+        window.addEventListener('orientationchange', () => {
+            // 画面回転時も複数回実行
+            setTimeout(adjustHeight, 100);
+            setTimeout(adjustHeight, 300);
+        });
+
         window.addEventListener('resize', adjustHeight);
+
+        // iOS/iPadOS特有の問題対応 - visualViewport使用
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                setTimeout(adjustHeight, 0);
+                setTimeout(adjustHeight, 100);
+            });
+        }
     </script>
 </body>
 
