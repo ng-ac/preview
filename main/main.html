@@ -148,7 +148,7 @@
         // 画面の実高さに合わせて各要素のheightを調整
         function adjustHeight() {
             const h = window.innerHeight;
-            [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
+            [bgImage, startScreen, overlay].forEach(el => {
                 if (el) el.style.height = h + 'px';
             });
         }
