@@ -147,31 +147,10 @@
 
         // 画面の実高さに合わせて各要素のheightを調整
         function adjustHeight() {
-            // まずスクロール位置を確実にリセット
-            window.scrollTo(0, 0);
-            document.body.scrollTop = 0;
-            document.documentElement.scrollTop = 0;
-
-            // 実際のビューポート高さを取得
-            const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
+            const h = window.innerHeight;
             [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
-                if (el) {
-                    el.style.height = h + 'px';
-                    el.style.minHeight = h + 'px';
-                    el.style.maxHeight = h + 'px';
-                }
+                if (el) el.style.height = h + 'px';
             });
-
-            // 確実に位置をリセット
-            if (bgImage) {
-                bgImage.style.top = '0';
-                bgImage.style.transform = 'translateY(0)';
-            }
-            if (startScreen) {
-                startScreen.style.top = '0';
-                startScreen.style.transform = 'translateY(0)';
-            }
         }
 
         // ローディング画面の表示～終了までを1セットで実行する関数
@@ -186,110 +165,31 @@
             }, 2000);
         }
 
-        // 強制的に再レイアウトを発生させる関数
-        function forceReflow() {
-            document.body.style.display = 'none';
-            document.body.offsetHeight; // reflow強制
-            document.body.style.display = '';
-        }
-
         // 初回ロード時 - 複数回adjustHeightを実行して確実に高さを取得
         window.addEventListener('load', () => {
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
             }
 
-            // 即座に実行
-            window.scrollTo(0, 0);
+            // 即座に1回目
             adjustHeight();
 
-            // 段階的に実行
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 50);
+            // 少し待ってから2回目（ブラウザのレイアウト計算完了を待つ）
+            setTimeout(adjustHeight, 50);
 
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                forceReflow();
-                adjustHeight();
-            }, 150);
-
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 300);
-
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 500);
-
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 800);
+            // さらに念押しで3回目
+            setTimeout(adjustHeight, 150);
 
             // 本来のスタートアップ処理
             runStartup();
         });
 
         window.addEventListener('pageshow', (event) => {
-            window.scrollTo(0, 0);
-            adjustHeight();
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 100);
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 300);
             runStartup();
         });
 
-        window.addEventListener('orientationchange', () => {
-            window.scrollTo(0, 0);
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                forceReflow();
-                adjustHeight();
-            }, 100);
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 300);
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                adjustHeight();
-            }, 500);
-        });
-
-        window.addEventListener('resize', () => {
-            window.scrollTo(0, 0);
-            adjustHeight();
-        });
-
-        // iOS/iPadOS特有の問題対応 - visualViewport使用
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', () => {
-                window.scrollTo(0, 0);
-                setTimeout(() => {
-                    window.scrollTo(0, 0);
-                    adjustHeight();
-                }, 0);
-                setTimeout(() => {
-                    window.scrollTo(0, 0);
-                    adjustHeight();
-                }, 100);
-            });
-        }
-
-        // 念のため、DOMContentLoadedでも実行
-        document.addEventListener('DOMContentLoaded', () => {
-            window.scrollTo(0, 0);
-            adjustHeight();
-        });
+        window.addEventListener('orientationchange', adjustHeight);
+        window.addEventListener('resize', adjustHeight);
     </script>
 </body>
 
