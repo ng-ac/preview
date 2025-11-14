@@ -1,7 +1,9 @@
-/* ===== 透明リンクレイヤー ===== */
-.overlay {
+overlay {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 2;
     pointer-events: none;
     /* 子要素だけ反応 */
@@ -50,17 +52,17 @@
 
 /* 画面が極端に縦長・横長のときの微補正例 */
 @media (max-width: 600px) {
-    #link-yomogi {
+    .btn-yomogi {
         top: 26%;
         height: 25%;
     }
 
-    #link-gym {
+    .btn-gym {
         top: 26%;
         height: 25%;
     }
 
-    #link-tanning {
+    .btn-tanning {
         top: 59%;
         height: 25%;
     }
