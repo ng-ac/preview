@@ -29,19 +29,31 @@
             box-sizing: border-box;
         }
 
-        html,
-        body {
-            height: 100%;
+        html {
             width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        body {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             background: #fff;
             font-family: 'Poppins', 'Noto Sans JP', sans-serif;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
 
         /* 背景画像 */
         .bg-image {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -56,7 +68,9 @@
         }
 
         .overlay {
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             z-index: 5;
             width: 100%;
             height: 100%;
@@ -65,7 +79,10 @@
         /* スタート画面 */
         .start-screen {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 10;
             background: #fff;
             display: flex;
@@ -143,53 +160,25 @@
     <script>
         const bgImage = document.getElementById('bgImage');
         const startScreen = document.getElementById('startScreen');
-        const overlay = document.querySelector('.overlay');
 
-        // 画面の実高さに合わせて各要素のheightを調整
-        function adjustHeight() {
-            const h = window.innerHeight;
-            [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
-                if (el) el.style.height = h + 'px';
-            });
-        }
-
-        // ローディング画面の表示～終了までを1セットで実行する関数
+        // ローディング画面の表示～終了
         function runStartup() {
-            window.scrollTo(0, 0);
-            adjustHeight();
-
             setTimeout(() => {
-                adjustHeight();
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
             }, 2000);
         }
 
-        // 初回ロード時 - 複数回adjustHeightを実行して確実に高さを取得
         window.addEventListener('load', () => {
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
             }
-
-            // 即座に1回目
-            adjustHeight();
-
-            // 少し待ってから2回目（ブラウザのレイアウト計算完了を待つ）
-            setTimeout(adjustHeight, 50);
-
-            // さらに念押しで3回目
-            setTimeout(adjustHeight, 150);
-
-            // 本来のスタートアップ処理
             runStartup();
         });
 
-        window.addEventListener('pageshow', (event) => {
+        window.addEventListener('pageshow', () => {
             runStartup();
         });
-
-        window.addEventListener('orientationchange', adjustHeight);
-        window.addEventListener('resize', adjustHeight);
     </script>
 </body>
 
