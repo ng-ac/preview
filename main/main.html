@@ -145,6 +145,8 @@
         const startScreen = document.getElementById('startScreen');
         const overlay = document.querySelector('.overlay');
 
+        let isFirstLoad = true;
+
         // 画面の実高さに合わせて各要素のheightを調整
         function adjustHeight() {
             window.scrollTo(0, 0);
@@ -155,10 +157,8 @@
             const isIPad9Landscape = window.innerWidth === 1080 && window.screen.width === 1080;
 
             if (isIPad9Landscape) {
-                // iPad第9世代横画面なら810pxを強制
                 h = 810;
             } else {
-                // それ以外は通常通り
                 h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
             }
 
@@ -185,18 +185,26 @@
                 history.scrollRestoration = 'manual';
             }
 
-            // 即座に実行
-            adjustHeight();
+            if (isFirstLoad) {
+                // 初回起動時は意図的に遅延させる
+                setTimeout(adjustHeight, 300);
+                setTimeout(adjustHeight, 500);
+                setTimeout(adjustHeight, 800);
+                setTimeout(adjustHeight, 1000);
+                setTimeout(adjustHeight, 1500);
 
-            // 念のため複数回
-            setTimeout(adjustHeight, 50);
-            setTimeout(adjustHeight, 150);
-            setTimeout(adjustHeight, 300);
+                isFirstLoad = false;
+            } else {
+                adjustHeight();
+                setTimeout(adjustHeight, 50);
+                setTimeout(adjustHeight, 150);
+            }
 
             runStartup();
         });
 
         window.addEventListener('pageshow', (event) => {
+            // pageshow時は即座に正確な値が取れる
             adjustHeight();
             setTimeout(adjustHeight, 100);
             runStartup();
@@ -211,6 +219,23 @@
 
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', adjustHeight);
+        }
+
+        // 念のため、完全にレンダリング完了後にも実行
+        window.addEventListener('DOMContentLoaded', () => {
+            if (isFirstLoad) {
+                setTimeout(adjustHeight, 800);
+                setTimeout(adjustHeight, 1200);
+            }
+        });
+
+        // requestAnimationFrameで確実に描画タイミングで実行
+        if (isFirstLoad) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    adjustHeight();
+                });
+            });
         }
     </script>
 </body>
