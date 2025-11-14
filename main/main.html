@@ -147,7 +147,21 @@
 
         // 画面の実高さに合わせて各要素のheightを調整
         function adjustHeight() {
-            const h = window.innerHeight;
+            window.scrollTo(0, 0);
+
+            let h;
+
+            // iPad第9世代の横画面を検出
+            const isIPad9Landscape = window.innerWidth === 1080 && window.screen.width === 1080;
+
+            if (isIPad9Landscape) {
+                // iPad第9世代横画面なら810pxを強制
+                h = 810;
+            } else {
+                // それ以外は通常通り
+                h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            }
+
             [document.documentElement, document.body, bgImage, startScreen, overlay].forEach(el => {
                 if (el) el.style.height = h + 'px';
             });
@@ -165,31 +179,39 @@
             }, 2000);
         }
 
-        // 初回ロード時 - 複数回adjustHeightを実行して確実に高さを取得
+        // 初回ロード時
         window.addEventListener('load', () => {
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
             }
 
-            // 即座に1回目
+            // 即座に実行
             adjustHeight();
 
-            // 少し待ってから2回目（ブラウザのレイアウト計算完了を待つ）
+            // 念のため複数回
             setTimeout(adjustHeight, 50);
-
-            // さらに念押しで3回目
             setTimeout(adjustHeight, 150);
+            setTimeout(adjustHeight, 300);
 
-            // 本来のスタートアップ処理
             runStartup();
         });
 
         window.addEventListener('pageshow', (event) => {
+            adjustHeight();
+            setTimeout(adjustHeight, 100);
             runStartup();
         });
 
-        window.addEventListener('orientationchange', adjustHeight);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(adjustHeight, 100);
+            setTimeout(adjustHeight, 300);
+        });
+
         window.addEventListener('resize', adjustHeight);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', adjustHeight);
+        }
     </script>
 </body>
 
