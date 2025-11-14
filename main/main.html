@@ -138,27 +138,10 @@
                 transform: rotate(360deg);
             }
         }
-
-        /* デバッグ表示 */
-        .debug-info {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 0, 0, 0.8);
-            color: white;
-            padding: 10px;
-            font-size: 12px;
-            z-index: 9999;
-            font-family: monospace;
-            line-height: 1.5;
-        }
     </style>
 </head>
 
 <body>
-    <!-- デバッグ情報表示 -->
-    <div class="debug-info" id="debugInfo">読み込み中...</div>
-
     <!-- スタート画面 -->
     <div id="startScreen" class="start-screen">
         <img src="/preview/main/road.jpg" alt="Unlimited" class="start-logo">
@@ -177,31 +160,31 @@
     <script>
         const bgImage = document.getElementById('bgImage');
         const startScreen = document.getElementById('startScreen');
-        const debugInfo = document.getElementById('debugInfo');
 
-        function updateDebugInfo() {
-            const info = `
-innerW: ${window.innerWidth}
-innerH: ${window.innerHeight}
-screenW: ${window.screen.width}
-screenH: ${window.screen.height}
-htmlTop: ${document.documentElement.style.top || 'auto'}
-bodyTop: ${document.body.style.top || 'auto'}
-scrollY: ${window.scrollY}
-docScrollTop: ${document.documentElement.scrollTop}
-bodyScrollTop: ${document.body.scrollTop}
-orientation: ${window.orientation || screen.orientation?.angle || 'unknown'}
-            `.trim();
-            debugInfo.textContent = info;
+        // 高さを修正する関数
+        function fixHeight() {
+            const currentWidth = window.innerWidth;
+            const currentHeight = window.innerHeight;
+
+            // iPad第9世代 横画面の場合、正しい高さに修正
+            if (currentWidth === 1080 && currentHeight < 810) {
+                const correctHeight = 810;
+                document.documentElement.style.height = correctHeight + 'px';
+                document.body.style.height = correctHeight + 'px';
+                if (bgImage) bgImage.style.height = correctHeight + 'px';
+                if (startScreen) startScreen.style.height = correctHeight + 'px';
+                const overlayEl = document.querySelector('.overlay');
+                if (overlayEl) overlayEl.style.height = correctHeight + 'px';
+            }
         }
 
         // ローディング画面の表示～終了
         function runStartup() {
-            updateDebugInfo();
+            fixHeight();
             setTimeout(() => {
+                fixHeight();
                 bgImage.classList.add('show');
                 startScreen.classList.add('hide');
-                updateDebugInfo();
             }, 2000);
         }
 
@@ -209,20 +192,24 @@ orientation: ${window.orientation || screen.orientation?.angle || 'unknown'}
             if ('scrollRestoration' in history) {
                 history.scrollRestoration = 'manual';
             }
-            updateDebugInfo();
+            fixHeight();
+            setTimeout(fixHeight, 100);
+            setTimeout(fixHeight, 300);
+            setTimeout(fixHeight, 500);
             runStartup();
         });
 
         window.addEventListener('pageshow', () => {
-            updateDebugInfo();
+            fixHeight();
+            setTimeout(fixHeight, 100);
             runStartup();
         });
 
-        window.addEventListener('resize', updateDebugInfo);
-        window.addEventListener('orientationchange', updateDebugInfo);
-
-        // 初期状態も表示
-        updateDebugInfo();
+        window.addEventListener('resize', fixHeight);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(fixHeight, 100);
+            setTimeout(fixHeight, 300);
+        });
     </script>
 </body>
 
